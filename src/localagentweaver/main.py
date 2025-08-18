@@ -6,27 +6,43 @@ LocalAgentWeaver - メインアプリケーション
 
 import asyncio
 import os
+import sys
 import logging
 from pathlib import Path
 from typing import Optional, List
+
+# パスの設定を追加
+current_dir = Path(__file__).parent
+project_root = current_dir.parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(current_dir))
 
 import chainlit as cl
 from langchain_community.llms import Ollama
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain.schema import HumanMessage, AIMessage
 
-from modules.project_manager import ProjectManager, Project
-from modules.rag_engine import RAGEngine
+# 絶対インポートに変更
+try:
+    from src.localagentweaver.core.project_manager import ProjectManager, Project
+    from src.localagentweaver.core.rag_engine import RAGEngine
+    from src.localagentweaver.config.settings import (
+        PROJECT_ROOT, DATA_DIR, LOGS_DIR, VECTOR_DB_DIR,
+        OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE,
+        DATABASE_PATH, SUPPORTED_FILE_EXTENSIONS,
+        LOG_LEVEL, LOG_FORMAT
+    )
+except ImportError:
+    # フォールバック: 相対インポート
+    from .core.project_manager import ProjectManager, Project
+    from .core.rag_engine import RAGEngine
+    from .config.settings import (
+        PROJECT_ROOT, DATA_DIR, LOGS_DIR, VECTOR_DB_DIR,
+        OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE,
+        DATABASE_PATH, SUPPORTED_FILE_EXTENSIONS,
+        LOG_LEVEL, LOG_FORMAT
+    )
 
-# プロジェクトルートの設定
-PROJECT_ROOT = Path(__file__).parent
-DATA_DIR = PROJECT_ROOT / "data"
-LOGS_DIR = PROJECT_ROOT / "logs"
-VECTOR_DB_DIR = PROJECT_ROOT / "vector_db"
-
-# 必要なディレクトリを作成
-for directory in [DATA_DIR, LOGS_DIR, VECTOR_DB_DIR]:
-    directory.mkdir(exist_ok=True)
 
 class LocalAgentWeaver:
     """LocalAgentWeaverのメインクラス"""
@@ -36,15 +52,15 @@ class LocalAgentWeaver:
         self.llm = None
         self.embeddings = None
         self.rag_engine = None
-        self.project_manager = ProjectManager(DATA_DIR / "projects.db")
+        self.project_manager = ProjectManager(DATABASE_PATH)
         self.setup_logging()
         self.setup_llm()
     
     def setup_logging(self):
         """ロギング設定"""
         logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            level=getattr(logging, LOG_LEVEL),
+            format=LOG_FORMAT,
             handlers=[
                 logging.FileHandler(LOGS_DIR / 'localagentweaver.log'),
                 logging.StreamHandler()
@@ -56,20 +72,20 @@ class LocalAgentWeaver:
         try:
             # Ollamaの接続テスト
             self.llm = Ollama(
-                model="llama3",
-                base_url="http://localhost:11434",
-                temperature=0.7
+                model=OLLAMA_MODEL,
+                base_url=OLLAMA_BASE_URL,
+                temperature=OLLAMA_TEMPERATURE
             )
             
             self.embeddings = OllamaEmbeddings(
-                model="llama3",
-                base_url="http://localhost:11434"
+                model=OLLAMA_MODEL,
+                base_url=OLLAMA_BASE_URL
             )
             
             # RAGエンジンの初期化
             self.rag_engine = RAGEngine(
                 vector_db_path=VECTOR_DB_DIR,
-                projects_db_path=DATA_DIR / "projects.db",
+                projects_db_path=DATABASE_PATH,
                 llm=self.llm,
                 embeddings=self.embeddings
             )
@@ -104,9 +120,16 @@ class LocalAgentWeaver:
                     
                     return answer
             
+            # 言語に応じたプロンプト作成
+            enhanced_prompt = f"""Please respond in the same language as the user's question. If the user asks in Japanese, respond in Japanese. If the user asks in English, respond in English.
+
+User question: {message}
+
+Response:"""
+            
             # 通常のLLM応答
             response = await asyncio.get_event_loop().run_in_executor(
-                None, self.llm.invoke, message
+                None, self.llm.invoke, enhanced_prompt
             )
             return response
         except Exception as e:
@@ -119,8 +142,10 @@ class LocalAgentWeaver:
         
         return await self.rag_engine.process_document(file_path, project_id, filename)
 
+
 # グローバルインスタンス
 weaver = LocalAgentWeaver()
+
 
 @cl.on_chat_start
 async def on_chat_start():
@@ -130,15 +155,28 @@ async def on_chat_start():
     welcome_message = """
 🎉 **LocalAgentWeaverへようこそ！**
 
-ローカル環境で動作するナレッジベース拡張型AIチャットアプリです。
+ローカル環境で動作するAIチャットアプリです。
 
-どのプロジェクトで作業しますか？
+何でもお気軽に質問してください！
 """
     
     await cl.Message(content=welcome_message).send()
     
-    # プロジェクト選択UIを表示
-    await show_project_selection()
+    # Ollama接続状態をチェック
+    if not weaver.llm:
+        error_message = """
+⚠️ **Ollama接続エラー**
+
+Ollamaが起動していない可能性があります。以下をご確認ください：
+
+1. Ollamaがインストールされているか
+2. `ollama serve` でOllamaが起動しているか
+3. `ollama pull llama3` でモデルがダウンロード済みか
+
+詳細: https://ollama.ai/
+"""
+        await cl.Message(content=error_message).send()
+
 
 async def show_project_selection():
     """プロジェクト選択UIを表示"""
@@ -195,29 +233,31 @@ Ollamaが起動していない可能性があります。以下をご確認く�
     except Exception as e:
         await cl.Message(content=f"エラー: プロジェクト情報の取得に失敗しました: {str(e)}").send()
 
+
 @cl.action_callback("create_new_project")
 async def create_new_project(action):
     """新規プロジェクト作成のハンドラ"""
     
-    # プロジェクト名を入力してもらう
-    project_name = await cl.AskUserMessage(
-        content="新規プロジェクトの名前を入力してください:",
-        timeout=30
-    ).send()
-    
-    if project_name and project_name.get("output"):
-        name = project_name["output"].strip()
+    try:
+        # プロジェクト名を入力してもらう
+        project_name = await cl.AskUserMessage(
+            content="新規プロジェクトの名前を入力してください:",
+            timeout=30
+        ).send()
         
-        if name:
-            try:
-                # プロジェクトを作成
-                project_id = weaver.project_manager.create_project(name)
-                
-                # セッションにプロジェクトIDを保存
-                cl.user_session.set("current_project_id", project_id)
-                cl.user_session.set("current_project_name", name)
-                
-                success_message = f"""
+        if project_name and project_name.get("output"):
+            name = project_name["output"].strip()
+            
+            if name:
+                try:
+                    # プロジェクトを作成
+                    project_id = weaver.project_manager.create_project(name)
+                    
+                    # セッションにプロジェクトIDを保存
+                    cl.user_session.set("current_project_id", project_id)
+                    cl.user_session.set("current_project_name", name)
+                    
+                    success_message = f"""
 ✅ **プロジェクト『{name}』を作成しました！**
 
 これで次の機能が利用可能です：
@@ -227,28 +267,37 @@ async def create_new_project(action):
 
 ファイルをアップロードするか、質問を入力してください！
 """
-                
-                await cl.Message(content=success_message).send()
-                
-                # アクションボタンを表示
-                await add_action_buttons()
-                
-            except ValueError as e:
-                await cl.Message(content=f"❌ エラー: {str(e)}").send()
-                await show_project_selection()
-            except Exception as e:
-                await cl.Message(content=f"❌ プロジェクト作成に失敗しました: {str(e)}").send()
+                    
+                    await cl.Message(content=success_message).send()
+                    
+                    # アクションボタンを表示
+                    await add_action_buttons()
+                    
+                except ValueError as e:
+                    await cl.Message(content=f"❌ エラー: {str(e)}").send()
+                    await show_project_selection()
+                except Exception as e:
+                    await cl.Message(content=f"❌ プロジェクト作成に失敗しました: {str(e)}").send()
+                    await show_project_selection()
+            else:
+                await cl.Message(content="❌ プロジェクト名を入力してください").send()
                 await show_project_selection()
         else:
-            await cl.Message(content="❌ プロジェクト名を入力してください").send()
+            await cl.Message(content="❌ プロジェクト名の入力がキャンセルされました").send()
             await show_project_selection()
-    else:
-        await cl.Message(content="❌ プロジェクト名の入力がキャンセルされました").send()
+            
+    except Exception as e:
+        await cl.Message(content=f"❌ プロジェクト作成処理でエラーが発生しました: {str(e)}").send()
         await show_project_selection()
 
-@cl.action_callback("select_project_.*")  
+
+@cl.action_callback
 async def select_existing_project(action):
     """既存プロジェクト選択のハンドラ"""
+    
+    # プロジェクト選択アクションかチェック
+    if not action.name.startswith("select_project_"):
+        return
     
     project_id = int(action.value)
     
@@ -286,45 +335,35 @@ async def select_existing_project(action):
         await cl.Message(content=f"❌ プロジェクトの読み込みに失敗しました: {str(e)}").send()
         await show_project_selection()
 
+
 @cl.on_message
 async def on_message(message: cl.Message):
     """メッセージ受信時の処理"""
     
-    # プロジェクトが選択されているかチェック
-    current_project_id = cl.user_session.get("current_project_id")
-    current_project_name = cl.user_session.get("current_project_name")
-    
-    if not current_project_id:
-        await cl.Message(content="⚠️ プロジェクトが選択されていません。まずプロジェクトを選択してください。").send()
-        await show_project_selection()
-        return
-    
-    # ファイルアップロードの処理
-    if message.elements:
-        await handle_file_upload(message.elements, current_project_id, current_project_name)
-        return
-    
     user_message = message.content
+    
+    # 空メッセージの場合は処理しない
+    if not user_message or not user_message.strip():
+        await cl.Message(content="💭 メッセージを入力してください。").send()
+        return
     
     # 処理中メッセージを表示
     processing_msg = cl.Message(content="🤖 回答を生成しています...")
     await processing_msg.send()
     
     try:
-        # AIからの回答を生成（RAG機能付き）
-        response = await weaver.generate_response(user_message, current_project_id)
-        
-        # プロジェクト情報を含めた回答
-        enhanced_response = f"{response}\n\n---\n📁 プロジェクト: {current_project_name}"
+        # AIからの回答を生成（シンプルモード）
+        response = await weaver.generate_response(user_message)
         
         # 処理中メッセージを更新
-        processing_msg.content = enhanced_response
+        processing_msg.content = response
         await processing_msg.update()
         
     except Exception as e:
         error_response = f"申し訳ありません。エラーが発生しました: {str(e)}"
         processing_msg.content = error_response
         await processing_msg.update()
+
 
 async def handle_file_upload(elements, project_id: int, project_name: str):
     """ファイルアップロードの処理"""
@@ -339,8 +378,12 @@ async def handle_file_upload(elements, project_id: int, project_name: str):
                 filename = element.name or file_path.name
                 
                 # サポートされているファイルタイプかチェック
-                if file_path.suffix.lower() not in ['.pdf', '.txt', '.md']:
-                    failed_files.append(f"{filename} (サポートされていないファイル形式)")
+                file_extension = file_path.suffix.lower()
+                
+                print(f"ファイル: {filename}, 拡張子: '{file_extension}', サポート対象: {SUPPORTED_FILE_EXTENSIONS}")
+                
+                if file_extension not in SUPPORTED_FILE_EXTENSIONS:
+                    failed_files.append(f"{filename} (サポートされていないファイル形式: {file_extension})")
                     continue
                 
                 # 処理開始メッセージ
@@ -382,12 +425,14 @@ async def handle_file_upload(elements, project_id: int, project_name: str):
         
         await cl.Message(content=summary).send()
 
+
 # プロジェクト切り替えとナレッジ管理のアクション
 @cl.action_callback("switch_project")
 async def switch_project_action(action):
     """プロジェクト切り替えアクション"""
     await cl.Message(content="📁 プロジェクトを切り替えます...").send()
     await show_project_selection()
+
 
 @cl.action_callback("manage_knowledge")
 async def manage_knowledge_action(action):
@@ -427,6 +472,7 @@ async def manage_knowledge_action(action):
     except Exception as e:
         await cl.Message(content=f"❌ ナレッジベース情報の取得に失敗しました: {str(e)}").send()
 
+
 # メッセージにアクションボタンを常時表示するヘルパー関数
 async def add_action_buttons():
     """アクションボタンを表示"""
@@ -455,14 +501,16 @@ async def add_action_buttons():
             actions=actions
         ).send()
 
+
 @cl.on_stop
 async def on_stop():
     """チャット終了時の処理"""
     print("LocalAgentWeaver セッションが終了しました")
+
 
 if __name__ == "__main__":
     print("🚀 LocalAgentWeaver を起動中...")
     print("Chainlit UI: http://localhost:8000")
     
     # Chainlitアプリを起動
-    # 注意: このスクリプトは `chainlit run app.py` で起動してください
+    # 注意: このスクリプトは `chainlit run src/localagentweaver/main.py` で起動してください

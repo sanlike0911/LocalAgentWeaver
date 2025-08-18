@@ -42,7 +42,7 @@ def main():
         print("終了するには Ctrl+C を押してください")
         
         subprocess.run([
-            "chainlit", "run", "app.py",
+            "chainlit", "run", "src/localagentweaver/main.py",
             "--host", "localhost",
             "--port", "8000"
         ])

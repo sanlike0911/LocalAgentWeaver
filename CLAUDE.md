@@ -36,7 +36,7 @@ ollama serve
 ollama pull llama3
 
 # Run the application
-chainlit run app.py
+chainlit run src/localagentweaver/main.py
 # OR use the convenience script
 python run.py
 
@@ -52,10 +52,10 @@ pytest                       # Run tests
 The application follows a modular architecture:
 
 ```
-Backend (app.py)
+Backend (src/localagentweaver/main.py)
 ├── Chainlit Server (UI and WebSocket handling)
-├── Project Manager (modules/project_manager.py) - SQLite CRUD operations
-└── RAG Engine (modules/rag_engine.py) - LangChain RAG implementation
+├── Project Manager (src/localagentweaver/core/project_manager.py) - SQLite CRUD operations
+└── RAG Engine (src/localagentweaver/core/rag_engine.py) - LangChain RAG implementation
 ```
 
 ### Key Components (IMPLEMENTED):
@@ -92,10 +92,12 @@ Backend (app.py)
 
 ## File Structure Conventions
 
-From the design document and gitignore, the planned structure is:
-- `src/` - Main application source code
+The project follows Python packaging best practices:
+- `src/localagentweaver/` - Main application source code
+  - `core/` - Core business logic modules (project_manager, rag_engine)
+  - `ui/` - UI handlers and components
+  - `config/` - Configuration and settings
 - `tests/` - Test files
-- `modules/` - Core business logic modules
 - `data/` - Runtime data directory (gitignored)
 - `logs/` - Application logs (gitignored)
 - `vector_db/` - ChromaDB storage (gitignored)
