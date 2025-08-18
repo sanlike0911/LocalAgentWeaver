@@ -153,6 +153,7 @@ async def show_project_selection():
             actions.append(cl.Action(
                 name=f"select_project_{project.id}",
                 value=str(project.id),
+                payload={"project_id": project.id},
                 label=f"📁 {project.name}",
                 description=f"作成日: {project.created_at.strftime('%Y-%m-%d')}"
             ))
@@ -161,6 +162,7 @@ async def show_project_selection():
         actions.append(cl.Action(
             name="create_new_project",
             value="new",
+            payload={"action": "create"},
             label="➕ 新規プロジェクトを作成",
             description="新しいプロジェクトを作成します"
         ))
@@ -435,12 +437,14 @@ async def add_action_buttons():
             cl.Action(
                 name="manage_knowledge",
                 value="manage",
+                payload={"action": "manage_knowledge"},
                 label="📚 ナレッジ管理",
                 description="現在のプロジェクトの文書を管理"
             ),
             cl.Action(
                 name="switch_project",
                 value="switch",
+                payload={"action": "switch_project"},
                 label="🔄 プロジェクト切替",
                 description="別のプロジェクトに切り替え"
             )

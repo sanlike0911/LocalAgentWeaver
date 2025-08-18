@@ -29,17 +29,8 @@ LocalAgentWeaver（ローカル・エージェント・ウィーバー）は、�
 git clone <repository-url>
 cd LocalAgentWeaver
 
-# 開発環境をセットアップ
+# 開発環境を自動セットアップ（仮想環境作成＋依存関係インストール）
 python setup_dev.py
-
-# 仮想環境をアクティベート（Windows）
-venv\\Scripts\\activate
-
-# 仮想環境をアクティベート（macOS/Linux）
-source venv/bin/activate
-
-# 依存関係をインストール
-pip install -r requirements.txt
 ```
 
 ### 3. Ollamaのセットアップ

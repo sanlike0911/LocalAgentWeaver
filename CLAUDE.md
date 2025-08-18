@@ -20,17 +20,14 @@ LocalAgentWeaver (ローカル・エージェント・ウィーバー) is a loca
 The following commands are used for development and running the application:
 
 ```bash
-# Setup development environment
+# Setup development environment (creates .venv and installs dependencies automatically)
 python setup_dev.py
 
-# Activate virtual environment (Windows)
-venv\Scripts\activate
+# Activate virtual environment when needed (Windows)
+.venv\Scripts\activate
 
-# Activate virtual environment (Unix/Linux/macOS)
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Activate virtual environment when needed (Unix/Linux/macOS)
+source .venv/bin/activate
 
 # Start Ollama service (required)
 ollama serve
