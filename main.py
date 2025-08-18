@@ -97,7 +97,7 @@ class LocalAgentWeaver:
             self.embeddings = None
             self.rag_engine = None
     
-    async def generate_response(self, message: str, project_id: int = None) -> str:
+    async def generate_response(self, message: str, project_id: int = None, conversation_history: list = None) -> str:
         """AIからのレスポンスを生成"""
         if not self.llm:
             return "申し訳ありません。現在AIが利用できません。Ollamaが起動しているか確認してください。"
@@ -120,10 +120,16 @@ class LocalAgentWeaver:
                     
                     return answer
             
-            # 言語に応じたプロンプト作成
+            # 会話履歴を含むプロンプト作成
+            context_text = ""
+            if conversation_history:
+                context_text = "\n\nConversation history:\n"
+                for entry in conversation_history[-5:]:  # 最新5件の履歴を使用
+                    context_text += f"User: {entry['user']}\nAssistant: {entry['assistant']}\n\n"
+            
             enhanced_prompt = f"""Please respond in the same language as the user's question. If the user asks in Japanese, respond in Japanese. If the user asks in English, respond in English.
-
-User question: {message}
+{context_text}
+Current user question: {message}
 
 Response:"""
             
@@ -347,13 +353,29 @@ async def on_message(message: cl.Message):
         await cl.Message(content="💭 メッセージを入力してください。").send()
         return
     
+    # 会話履歴を取得
+    conversation_history = cl.user_session.get("conversation_history", [])
+    
     # 処理中メッセージを表示
     processing_msg = cl.Message(content="🤖 回答を生成しています...")
     await processing_msg.send()
     
     try:
-        # AIからの回答を生成（シンプルモード）
-        response = await weaver.generate_response(user_message)
+        # AIからの回答を生成（会話履歴付き）
+        response = await weaver.generate_response(user_message, conversation_history=conversation_history)
+        
+        # 会話履歴に追加
+        conversation_history.append({
+            "user": user_message,
+            "assistant": response
+        })
+        
+        # 履歴が長すぎる場合は古いものを削除（最新10件を保持）
+        if len(conversation_history) > 10:
+            conversation_history = conversation_history[-10:]
+        
+        # セッションに保存
+        cl.user_session.set("conversation_history", conversation_history)
         
         # 処理中メッセージを更新
         processing_msg.content = response
