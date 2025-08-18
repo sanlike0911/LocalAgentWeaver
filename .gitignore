@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[codz]
+*.py[cod]
 *$py.class
 
 # C extensions
@@ -205,3 +205,32 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Local Agent Weaver 固有設定
+# データディレクトリ
+data/
+!data/.gitkeep
+
+# ログファイル
+logs/
+*.log
+
+# 開発用設定ファイル
+.env.dev
+.env.local
+config.local.ini
+
+# アップロードファイル
+uploads/
+
+# ベクトルデータベース
+vector_db/
+*.db
+*.db-journal
+
+# Chainlit固有
+.chainlit/
+chainlit.md
+
+# Ollama設定（ローカル）
+Modelfile.local
