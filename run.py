@@ -42,7 +42,7 @@ def main():
         print("終了するには Ctrl+C を押してください")
         
         subprocess.run([
-            "chainlit", "run", "main.py",
+            "chainlit", "run", "src/main.py",
             "--host", "localhost",
             "--port", "8000"
         ])

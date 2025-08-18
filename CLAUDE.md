@@ -36,7 +36,7 @@ ollama serve
 ollama pull llama3
 
 # Run the application
-chainlit run main.py
+chainlit run src/main.py
 # OR use the convenience script
 python run.py
 
@@ -52,10 +52,10 @@ pytest                       # Run tests
 The application follows a modular architecture:
 
 ```
-Backend (main.py)
+Backend (src/main.py)
 ├── Chainlit Server (UI and WebSocket handling)
-├── Project Manager (core/project_manager.py) - SQLite CRUD operations
-└── RAG Engine (core/rag_engine.py) - LangChain RAG implementation
+├── Project Manager (src/core/project_manager.py) - SQLite CRUD operations
+└── RAG Engine (src/core/rag_engine.py) - LangChain RAG implementation
 ```
 
 ### Key Components (IMPLEMENTED):
@@ -92,15 +92,17 @@ Backend (main.py)
 
 ## File Structure Conventions
 
-The project follows a simple flat structure:
-- `main.py` - Main application entry point
-- `core/` - Core business logic modules (project_manager, rag_engine)
-- `ui/` - UI handlers and components  
-- `config/` - Configuration and settings
+The project follows Python packaging best practices:
+- `src/` - Main application source code
+  - `main.py` - Main application entry point
+  - `core/` - Core business logic modules (project_manager, rag_engine)
+  - `ui/` - UI handlers and components
+  - `config/` - Configuration and settings
 - `tests/` - Test files
 - `data/` - Runtime data directory (gitignored)
 - `logs/` - Application logs (gitignored)
 - `vector_db/` - ChromaDB storage (gitignored)
+- `setup.py` - Package configuration
 
 ## Environment Setup
 

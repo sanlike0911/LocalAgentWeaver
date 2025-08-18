@@ -22,26 +22,15 @@ from langchain_community.llms import Ollama
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain.schema import HumanMessage, AIMessage
 
-# 絶対インポートに変更
-try:
-    from src.localagentweaver.core.project_manager import ProjectManager, Project
-    from src.localagentweaver.core.rag_engine import RAGEngine
-    from src.localagentweaver.config.settings import (
-        PROJECT_ROOT, DATA_DIR, LOGS_DIR, VECTOR_DB_DIR,
-        OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE,
-        DATABASE_PATH, SUPPORTED_FILE_EXTENSIONS,
-        LOG_LEVEL, LOG_FORMAT
-    )
-except ImportError:
-    # フォールバック: 相対インポート
-    from .core.project_manager import ProjectManager, Project
-    from .core.rag_engine import RAGEngine
-    from .config.settings import (
-        PROJECT_ROOT, DATA_DIR, LOGS_DIR, VECTOR_DB_DIR,
-        OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE,
-        DATABASE_PATH, SUPPORTED_FILE_EXTENSIONS,
-        LOG_LEVEL, LOG_FORMAT
-    )
+# 直接インポート（srcディレクトリ内から）
+from core.project_manager import ProjectManager, Project
+from core.rag_engine import RAGEngine
+from config.settings import (
+    PROJECT_ROOT, DATA_DIR, LOGS_DIR, VECTOR_DB_DIR,
+    OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE,
+    DATABASE_PATH, SUPPORTED_FILE_EXTENSIONS,
+    LOG_LEVEL, LOG_FORMAT
+)
 
 
 class LocalAgentWeaver:

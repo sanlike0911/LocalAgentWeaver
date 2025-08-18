@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 # プロジェクトルートの設定
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 LOGS_DIR = PROJECT_ROOT / "logs"
 VECTOR_DB_DIR = PROJECT_ROOT / "vector_db"
