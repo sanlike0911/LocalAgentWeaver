@@ -79,13 +79,13 @@ services:
       - ollama
     # Uncomment below for GPU support (requires NVIDIA Container Toolkit)
     # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
+      # resources:
+      #   reservations:
+      #     devices:
+      #       - driver: nvidia
+      #         count: 1
+      #         capabilities: [gpu]
+    runtime: nvidia
 volumes:
   postgres_data:
   redis_data:

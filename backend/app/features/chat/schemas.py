@@ -19,7 +19,7 @@ class ChatRequest(BaseModel):
     message: str
     project_id: int
     provider: LLMProvider = LLMProvider.OLLAMA
-    model: str = "llama3"
+    model: str = "llama3.2:1b"
     context: Optional[str] = None
 
 
@@ -28,7 +28,7 @@ class RAGChatRequest(BaseModel):
     project_id: int
     team_id: Optional[int] = None
     provider: LLMProvider = LLMProvider.OLLAMA
-    model: str = "llama3"
+    model: str = "llama3.2:1b"
     context: Optional[str] = None
 
 
@@ -68,6 +68,7 @@ class InstallTaskStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class InstallProgress(BaseModel):
@@ -89,3 +90,9 @@ class InstallTaskResponse(BaseModel):
 class ModelDeleteResponse(BaseModel):
     success: bool
     message: str
+
+
+class InstallCancelResponse(BaseModel):
+    success: bool
+    message: str
+    task_id: str

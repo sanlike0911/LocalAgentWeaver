@@ -73,11 +73,43 @@ esac
 
 # Check NVIDIA Container Toolkit for Ollama
 if [ "$llm_env" = "ollama" ]; then
-    if ! docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi > /dev/null 2>&1; then
-        echo "⚠️  NVIDIA Container Toolkit not detected. Ollama will run on CPU only."
-        echo "   For GPU acceleration, install NVIDIA Container Toolkit."
+    echo ""
+    echo "🎯 Checking GPU support for Ollama..."
+    
+    # Check if NVIDIA driver is installed
+    if command -v nvidia-smi &> /dev/null; then
+        echo "✅ NVIDIA driver detected"
+        
+        # Check if NVIDIA Container Toolkit is available
+        if docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi > /dev/null 2>&1; then
+            echo "✅ NVIDIA Container Toolkit detected. GPU acceleration will be available."
+        else
+            echo "⚠️  NVIDIA Container Toolkit not properly configured."
+            echo ""
+            echo "📋 To enable GPU acceleration for faster LLM inference:"
+            echo ""
+            echo "🐧 For Ubuntu/Debian:"
+            echo "   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg"
+            echo "   curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list"
+            echo "   sudo apt update && sudo apt install -y nvidia-container-toolkit"
+            echo "   sudo systemctl restart docker"
+            echo ""
+            echo "🎩 For CentOS/RHEL/Fedora:"
+            echo "   curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo"
+            echo "   sudo yum install -y nvidia-container-toolkit"
+            echo "   sudo systemctl restart docker"
+            echo ""
+            echo "🚀 After installation, restart this script for GPU-accelerated Ollama."
+            echo ""
+            read -p "Continue with CPU-only setup? [y/N]: " gpu_continue
+            if [[ ! "$gpu_continue" =~ ^[Yy]$ ]]; then
+                echo "Setup cancelled. Please install NVIDIA Container Toolkit and restart."
+                exit 1
+            fi
+        fi
     else
-        echo "✅ NVIDIA Container Toolkit detected. GPU support available."
+        echo "ℹ️  No NVIDIA GPU detected. Ollama will run on CPU."
+        echo "   This is fine for smaller models and development purposes."
     fi
 fi
 

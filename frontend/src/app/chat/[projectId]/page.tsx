@@ -33,7 +33,7 @@ function ChatPageContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [llmProvider, setLlmProvider] = useState<'ollama' | 'lm_studio'>('ollama')
-  const [selectedModel, setSelectedModel] = useState('llama3')
+  const [selectedModel, setSelectedModel] = useState('llama3.2:1b')
   const [llmHealthStatus, setLlmHealthStatus] = useState<any>(null)
   
   // Document management state - now handled by DocumentManager component

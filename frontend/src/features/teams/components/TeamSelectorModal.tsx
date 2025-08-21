@@ -33,7 +33,6 @@ export default function TeamSelectorModal({
 
   // プロジェクトのチーム一覧を取得
   const fetchTeams = useCallback(async () => {
-
     setLoading(true)
     setError('')
     try {

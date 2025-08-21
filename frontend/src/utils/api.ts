@@ -89,8 +89,23 @@ export const chatApi = {
     api.post('/api/chat/models/install', data),
   getInstallStatus: (taskId: string) =>
     api.get(`/api/chat/models/install/${taskId}`),
+  cancelInstallTask: (taskId: string) =>
+    api.post(`/api/chat/models/install/${taskId}/cancel`),
   deleteModel: (modelName: string, provider: string) =>
     api.delete(`/api/chat/models/${modelName}?provider=${provider}`),
+  
+  // Model presets
+  getModelPresets: (provider: 'ollama' | 'lm_studio', params?: {
+    category?: string;
+    recommended_only?: boolean;
+  }) => {
+    const searchParams = new URLSearchParams({ provider });
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.recommended_only) searchParams.append('recommended_only', 'true');
+    return api.get(`/api/chat/models/presets?${searchParams.toString()}`);
+  },
+  reloadModelPresets: () =>
+    api.post('/api/chat/models/presets/reload'),
 }
 
 export default api

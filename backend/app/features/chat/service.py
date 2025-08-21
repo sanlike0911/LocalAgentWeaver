@@ -2,15 +2,18 @@ import httpx
 import json
 import uuid
 import asyncio
+import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from fastapi import HTTPException, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.features.chat.schemas import (
     ChatRequest, ChatResponse, LLMProvider, ChatMessage,
     ModelInfo, ModelListResponse, InstallProgress, InstallTaskStatus,
-    ModelDeleteResponse
+    ModelDeleteResponse, InstallCancelResponse
 )
 from app.features.documents.service import DocumentService
 from app.models.team import Team, Agent
@@ -20,6 +23,7 @@ from sqlalchemy.orm import selectinload
 
 # In-memory storage for background tasks (In production, use Redis or DB)
 install_tasks: Dict[str, InstallProgress] = {}
+install_task_cancelled: Dict[str, bool] = {}  # Track cancelled tasks
 
 
 class ChatService:
@@ -407,6 +411,9 @@ class ChatService:
                 updated_at=datetime.utcnow()
             )
             
+            # Initialize cancellation flag
+            install_task_cancelled[task_id] = False
+            
             # Start background installation
             asyncio.create_task(ChatService._install_ollama_model(task_id, model_name))
             
@@ -420,25 +427,79 @@ class ChatService:
     
     @staticmethod
     async def _install_ollama_model(task_id: str, model_name: str):
-        """Background task for Ollama model installation"""
+        """Background task for Ollama model installation with streaming progress"""
         try:
             # Update status to running
             install_tasks[task_id].status = InstallTaskStatus.RUNNING
             install_tasks[task_id].message = f"Installing {model_name}..."
+            install_tasks[task_id].progress = 0.0
             install_tasks[task_id].updated_at = datetime.utcnow()
             
             url = f"{settings.OLLAMA_BASE_URL}/api/pull"
-            payload = {"name": model_name}
+            payload = {"name": model_name, "stream": True}
             
             async with httpx.AsyncClient(timeout=300.0) as client:
-                response = await client.post(url, json=payload)
-                response.raise_for_status()
-                
-                # Update status to completed
-                install_tasks[task_id].status = InstallTaskStatus.COMPLETED
-                install_tasks[task_id].progress = 1.0
-                install_tasks[task_id].message = f"Model {model_name} installed successfully"
-                install_tasks[task_id].updated_at = datetime.utcnow()
+                async with client.stream("POST", url, json=payload) as response:
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        # Check for cancellation
+                        if install_task_cancelled.get(task_id, False):
+                            install_tasks[task_id].status = InstallTaskStatus.CANCELLED
+                            install_tasks[task_id].message = f"Installation of {model_name} was cancelled"
+                            install_tasks[task_id].updated_at = datetime.utcnow()
+                            return  # Exit the installation process
+                        
+                        if line.strip():
+                            try:
+                                data = json.loads(line)
+                                logger.debug(f"Install {task_id}: {data}")
+                                
+                                # Update progress if available
+                                if "completed" in data and "total" in data:
+                                    completed = data["completed"]
+                                    total = data["total"]
+                                    if total > 0:
+                                        progress = completed / total
+                                        install_tasks[task_id].progress = progress
+                                        install_tasks[task_id].message = f"Downloading {model_name}: {progress * 100:.1f}% ({completed:,}/{total:,} bytes)"
+                                        install_tasks[task_id].updated_at = datetime.utcnow()
+                                        logger.debug(f"Progress update {task_id}: {progress:.3f}")
+                                
+                                # Handle status messages
+                                if "status" in data:
+                                    status_msg = data["status"]
+                                    if status_msg and "completed" not in data:
+                                        # Only update message if no progress info (to avoid overriding progress messages)
+                                        install_tasks[task_id].message = f"{status_msg}"
+                                        install_tasks[task_id].updated_at = datetime.utcnow()
+                                
+                                # Check if finished - look for success status or when no more data is expected
+                                if data.get("status") == "success":
+                                    install_tasks[task_id].status = InstallTaskStatus.COMPLETED
+                                    install_tasks[task_id].progress = 1.0
+                                    install_tasks[task_id].message = f"Model {model_name} installed successfully"
+                                    install_tasks[task_id].updated_at = datetime.utcnow()
+                                    logger.info(f"Installation completed for {task_id}: {model_name}")
+                                    break
+                                    
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"Invalid JSON in stream for {task_id}: {line} - {e}")
+                                continue
+                    
+                # Ensure completion status is set when streaming ends
+                if install_tasks[task_id].status == InstallTaskStatus.RUNNING:
+                    # Check if we actually finished downloading
+                    current_progress = install_tasks[task_id].progress or 0.0
+                    if current_progress >= 0.99:  # Consider 99% as complete due to rounding
+                        install_tasks[task_id].status = InstallTaskStatus.COMPLETED
+                        install_tasks[task_id].progress = 1.0
+                        install_tasks[task_id].message = f"Model {model_name} installed successfully"
+                    else:
+                        # Stream ended but download not complete - might be an error
+                        install_tasks[task_id].status = InstallTaskStatus.FAILED
+                        install_tasks[task_id].message = f"Installation of {model_name} incomplete ({current_progress*100:.1f}%)"
+                    install_tasks[task_id].updated_at = datetime.utcnow()
                 
         except Exception as e:
             # Update status to failed
@@ -455,6 +516,39 @@ class ChatService:
                 detail="Install task not found"
             )
         return install_tasks[task_id]
+    
+    @staticmethod
+    async def cancel_install_task(task_id: str) -> InstallCancelResponse:
+        """Cancel an ongoing model installation task"""
+        if task_id not in install_tasks:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Install task not found"
+            )
+        
+        task = install_tasks[task_id]
+        
+        # Can only cancel pending or running tasks
+        if task.status in [InstallTaskStatus.PENDING, InstallTaskStatus.RUNNING]:
+            install_task_cancelled[task_id] = True
+            
+            # Update task status immediately for pending tasks
+            if task.status == InstallTaskStatus.PENDING:
+                task.status = InstallTaskStatus.CANCELLED
+                task.message = f"Installation of {task.model_name} was cancelled"
+                task.updated_at = datetime.utcnow()
+            
+            return InstallCancelResponse(
+                success=True,
+                message=f"Cancellation requested for {task.model_name} installation",
+                task_id=task_id
+            )
+        else:
+            return InstallCancelResponse(
+                success=False,
+                message=f"Cannot cancel task in {task.status.value} state",
+                task_id=task_id
+            )
     
     @staticmethod
     async def delete_model(model_name: str, provider: LLMProvider) -> ModelDeleteResponse:

@@ -1,0 +1,268 @@
+{
+  "ollama": {
+    "popular_models": [
+      {
+        "name": "llama3.1:8b",
+        "display_name": "Llama 3.1 8B",
+        "description": "Meta の最新 Llama 3.1 モデル（8B パラメータ）",
+        "category": "general",
+        "tags": ["latest", "high-performance", "versatile"],
+        "recommended": true,
+        "size_estimate": "4.7GB"
+      },
+      {
+        "name": "llama3.2:1b",
+        "display_name": "Llama 3.2 1B",
+        "description": "Meta の軽量 Llama 3.2 モデル（1B パラメータ）",
+        "category": "general",
+        "tags": ["lightweight", "fast"],
+        "recommended": true,
+        "size_estimate": "1.3GB"
+      },
+      {
+        "name": "llama3.2:3b",
+        "display_name": "Llama 3.2 3B",
+        "description": "Meta の中量 Llama 3.2 モデル（3B パラメータ）",
+        "category": "general",
+        "tags": ["balanced", "performance"],
+        "recommended": true,
+        "size_estimate": "2.0GB"
+      },
+      {
+        "name": "codellama:7b",
+        "display_name": "Code Llama 7B",
+        "description": "コード生成・理解に特化したモデル（7B パラメータ）",
+        "category": "code",
+        "tags": ["coding", "programming"],
+        "recommended": true,
+        "size_estimate": "3.8GB"
+      },
+      {
+        "name": "codellama:13b",
+        "display_name": "Code Llama 13B",
+        "description": "より高性能なコード生成・理解モデル（13B パラメータ）",
+        "category": "code",
+        "tags": ["coding", "programming", "large"],
+        "recommended": false,
+        "size_estimate": "7.3GB"
+      },
+      {
+        "name": "mistral:7b",
+        "display_name": "Mistral 7B v0.3",
+        "description": "Mistral AI の高性能汎用モデル（v0.3更新版）",
+        "category": "general",
+        "tags": ["efficient", "multilingual", "updated"],
+        "recommended": true,
+        "size_estimate": "4.1GB"
+      },
+      {
+        "name": "mixtral:8x7b",
+        "display_name": "Mixtral 8x7B",
+        "description": "Mistral AI の Mixture of Experts モデル（8x7B パラメータ）",
+        "category": "general",
+        "tags": ["moe", "high-performance", "large"],
+        "recommended": false,
+        "size_estimate": "26GB"
+      },
+      {
+        "name": "gemma2:2b",
+        "display_name": "Gemma 2 2B",
+        "description": "Google の軽量高性能モデル（第2世代）",
+        "category": "general",
+        "tags": ["lightweight", "google", "efficient"],
+        "recommended": false,
+        "size_estimate": "1.6GB"
+      },
+      {
+        "name": "gemma2:9b",
+        "display_name": "Gemma 2 9B",
+        "description": "Google の中量高性能モデル（第2世代）",
+        "category": "general",
+        "tags": ["balanced", "google", "efficient"],
+        "recommended": false,
+        "size_estimate": "5.4GB"
+      },
+      {
+        "name": "qwen2.5:0.5b",
+        "display_name": "Qwen2.5 0.5B",
+        "description": "Alibaba の超軽量多言語モデル（2.5更新版）",
+        "category": "multilingual",
+        "tags": ["ultra-lightweight", "multilingual", "chinese", "updated"],
+        "recommended": false,
+        "size_estimate": "352MB"
+      },
+      {
+        "name": "qwen2.5:1.5b",
+        "display_name": "Qwen2.5 1.5B",
+        "description": "Alibaba の軽量多言語モデル（2.5更新版）",
+        "category": "multilingual",
+        "tags": ["lightweight", "multilingual", "chinese", "updated"],
+        "recommended": false,
+        "size_estimate": "934MB"
+      },
+      {
+        "name": "phi3:mini",
+        "display_name": "Phi-3 Mini",
+        "description": "Microsoft の小型高性能モデル（3B パラメータ）",
+        "category": "general",
+        "tags": ["lightweight", "microsoft", "efficient"],
+        "recommended": false,
+        "size_estimate": "2.3GB"
+      },
+      {
+        "name": "phi3:medium",
+        "display_name": "Phi-3 Medium",
+        "description": "Microsoft の中量高性能モデル（14B パラメータ）",
+        "category": "general",
+        "tags": ["balanced", "microsoft", "efficient"],
+        "recommended": false,
+        "size_estimate": "7.9GB"
+      },
+      {
+        "name": "gpt-oss:20b",
+        "display_name": "GPT-OSS 20B",
+        "description": "推論能力とエージェント機能を持つオープンソース GPT モデル（20B パラメータ）",
+        "category": "general",
+        "tags": ["oss", "agentic", "reasoning", "function-calling"],
+        "recommended": false,
+        "size_estimate": "14GB"
+      },
+      {
+        "name": "gpt-oss:120b",
+        "display_name": "GPT-OSS 120B",
+        "description": "高度な推論能力とエージェント機能を持つ大型オープンソース GPT モデル（120B パラメータ）",
+        "category": "general",
+        "tags": ["oss", "agentic", "reasoning", "function-calling", "large"],
+        "recommended": false,
+        "size_estimate": "65GB"
+      }
+    ],
+    "categories": {
+      "general": {
+        "name": "汎用モデル",
+        "description": "幅広い用途に使用できる汎用的なモデル"
+      },
+      "code": {
+        "name": "コード生成",
+        "description": "プログラミングやコード理解に特化したモデル"
+      },
+      "multilingual": {
+        "name": "多言語",
+        "description": "複数言語に対応した多言語モデル"
+      }
+    }
+  },
+  "lm_studio": {
+    "popular_models": [
+      {
+        "name": "llama-3.1-8b-instruct",
+        "display_name": "Llama 3.1 8B Instruct",
+        "description": "Meta Llama 3.1 8B Instruction-tuned モデル",
+        "category": "general",
+        "tags": ["instruction-tuned", "chat", "latest"],
+        "recommended": true,
+        "size_estimate": "4.7GB"
+      },
+      {
+        "name": "codellama-7b-instruct",
+        "display_name": "Code Llama 7B Instruct",
+        "description": "コード生成に特化した instruction-tuned モデル",
+        "category": "code",
+        "tags": ["coding", "instruction-tuned"],
+        "recommended": true,
+        "size_estimate": "3.8GB"
+      },
+      {
+        "name": "mistral-7b-instruct-v0.3",
+        "display_name": "Mistral 7B Instruct v0.3",
+        "description": "Mistral 7B の instruction-tuned版（v0.3更新版）",
+        "category": "general",
+        "tags": ["efficient", "instruction-tuned", "updated"],
+        "recommended": true,
+        "size_estimate": "4.1GB"
+      },
+      {
+        "name": "gemma2-2b-it",
+        "display_name": "Gemma 2 2B IT",
+        "description": "Google Gemma 2 2B Instruction-tuned（第2世代）",
+        "category": "general",
+        "tags": ["lightweight", "instruction-tuned", "google", "efficient"],
+        "recommended": false,
+        "size_estimate": "1.6GB"
+      },
+      {
+        "name": "phi-4-mini-reasoning",
+        "display_name": "Phi-4 Mini Reasoning",
+        "description": "Microsoft Phi-4 Mini 推論特化モデル（3.8B パラメータ）",
+        "category": "reasoning",
+        "tags": ["lightweight", "microsoft", "reasoning"],
+        "recommended": true,
+        "size_estimate": "2.3GB"
+      },
+      {
+        "name": "phi-4-reasoning-plus",
+        "display_name": "Phi-4 Reasoning Plus",
+        "description": "Microsoft Phi-4 高度な推論能力モデル（14.7B パラメータ）",
+        "category": "reasoning",
+        "tags": ["large", "microsoft", "reasoning", "rl-tuned"],
+        "recommended": false,
+        "size_estimate": "8.4GB"
+      },
+      {
+        "name": "qwen3-4b-thinking",
+        "display_name": "Qwen3 4B Thinking",
+        "description": "Alibaba Qwen3 推考特化モデル（4B パラメータ）",
+        "category": "reasoning",
+        "tags": ["thinking", "reasoning", "multilingual"],
+        "recommended": true,
+        "size_estimate": "2.4GB"
+      },
+      {
+        "name": "mistral-small-3.2",
+        "display_name": "Mistral Small 3.2",
+        "description": "Mistral Small 3.2 改善された instruction-following（24B パラメータ）",
+        "category": "general",
+        "tags": ["large", "instruction-tuned", "improved"],
+        "recommended": false,
+        "size_estimate": "14GB"
+      },
+      {
+        "name": "gpt-oss-20b-instruct",
+        "display_name": "GPT-OSS 20B Instruct",
+        "description": "推論能力とエージェント機能を持つ instruction-tuned GPT モデル（20B パラメータ）",
+        "category": "general",
+        "tags": ["oss", "agentic", "reasoning", "function-calling", "instruction-tuned"],
+        "recommended": false,
+        "size_estimate": "14GB"
+      },
+      {
+        "name": "gpt-oss-120b-instruct",
+        "display_name": "GPT-OSS 120B Instruct",
+        "description": "高度な推論能力とエージェント機能を持つ大型 instruction-tuned GPT モデル（120B パラメータ）",
+        "category": "general",
+        "tags": ["oss", "agentic", "reasoning", "function-calling", "instruction-tuned", "large"],
+        "recommended": false,
+        "size_estimate": "65GB"
+      }
+    ],
+    "categories": {
+      "general": {
+        "name": "汎用モデル",
+        "description": "幅広い用途に使用できる汎用的なモデル"
+      },
+      "code": {
+        "name": "コード生成",
+        "description": "プログラミングやコード理解に特化したモデル"
+      },
+      "reasoning": {
+        "name": "推論モデル",
+        "description": "論理的思考や総合的な推論に特化したモデル"
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2024-08-21",
+    "description": "LocalAgentWeaver でサポートされる LLM モデルのプリセット設定"
+  }
+}
