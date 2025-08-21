@@ -58,7 +58,7 @@ export default function TeamEditorModal({
   useEffect(() => {
     if (team && mode === 'edit') {
       setTeamName(team.name)
-      setTeamDescription(team.description)
+      setTeamDescription(team.description ?? '')
       setAgents([...team.agents])
     } else {
       // Reset form for create mode
@@ -72,7 +72,9 @@ export default function TeamEditorModal({
     const newAgent: Agent = {
       id: Date.now().toString(),
       name: '',
-      role: ''
+      role: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
     setAgents([...agents, newAgent])
   }

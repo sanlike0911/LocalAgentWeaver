@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
 // Types
 export interface Project {
@@ -81,6 +81,16 @@ export const chatApi = {
   }) => api.post('/api/chat/send', data),
   getChatHistory: (projectId: string) => api.get(`/api/chat/history/${projectId}`),
   checkLLMHealth: () => api.get('/api/chat/health'),
+  
+  // Model management
+  getModels: (provider: 'ollama' | 'lm_studio') => 
+    api.get(`/api/chat/models?provider=${provider}`),
+  installModel: (data: { model_name: string; provider: string }) =>
+    api.post('/api/chat/models/install', data),
+  getInstallStatus: (taskId: string) =>
+    api.get(`/api/chat/models/install/${taskId}`),
+  deleteModel: (modelName: string, provider: string) =>
+    api.delete(`/api/chat/models/${modelName}?provider=${provider}`),
 }
 
 export default api

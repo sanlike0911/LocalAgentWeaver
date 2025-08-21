@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { projectApi, chatApi, Project } from '@/utils/api'
+import { Team, Agent } from '@/features/teams/api'
 import TeamSelectorModal from '@/features/teams/components/TeamSelectorModal'
 import TeamEditorModal from '@/features/teams/components/TeamEditorModal'
 import DocumentManager from '@/features/documents/components/DocumentManager'
@@ -23,19 +24,7 @@ interface Message {
 }
 
 // Document interface is now in DocumentManager
-
-interface Team {
-  id: string
-  name: string
-  description: string
-  agents: Agent[]
-}
-
-interface Agent {
-  id: string
-  name: string
-  role: string
-}
+// Team and Agent interfaces are now imported from @/features/teams/api
 
 function ChatPageContent() {
   const [project, setProject] = useState<Project | null>(null)
