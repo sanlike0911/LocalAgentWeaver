@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Search, Plus, Settings, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,8 +32,7 @@ export default function TeamSelectorModal({
   const [error, setError] = useState('')
 
   // プロジェクトのチーム一覧を取得
-  const fetchTeams = async () => {
-    if (!projectId) return
+  const fetchTeams = useCallback(async () => {
 
     setLoading(true)
     setError('')
@@ -47,18 +46,20 @@ export default function TeamSelectorModal({
     } finally {
       setLoading(false)
     }
-  }
+  }, [projectId])
 
   useEffect(() => {
-    if (isOpen && projectId) {
+    if (isOpen) {
       fetchTeams()
     }
-  }, [isOpen, projectId])
+  }, [isOpen, fetchTeams])
 
-  const filteredTeams = teams.filter(team =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (team.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
-  )
+  const filteredTeams = useMemo(() => {
+    return teams.filter(team =>
+      team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (team.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+    )
+  }, [teams, searchQuery])
 
   const handleTeamSelect = (team: Team) => {
     onSelectTeam(team)
@@ -117,57 +118,56 @@ export default function TeamSelectorModal({
           {!loading && !error && (
             <div className="flex-1 overflow-y-auto space-y-3">
               {filteredTeams.map((team) => (
-              <div
-                key={team.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-                  selectedTeam?.id === team.id
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div 
-                    className="flex-1 min-w-0"
-                    onClick={() => handleTeamSelect(team)}
-                  >
-                    <div className="flex items-center mb-2">
-                      <h3 className="text-sm font-medium text-gray-900">
-                        {team.name}
-                      </h3>
-                      {selectedTeam?.id === team.id && (
-                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
-                          現在選択中
-                        </span>
-                      )}
+                <div
+                  key={team.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${selectedTeam?.id === team.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200'
+                    }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div
+                      className="flex-1 min-w-0"
+                      onClick={() => handleTeamSelect(team)}
+                    >
+                      <div className="flex items-center mb-2">
+                        <h3 className="text-sm font-medium text-gray-900">
+                          {team.name}
+                        </h3>
+                        {selectedTeam?.id === team.id && (
+                          <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                            現在選択中
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 mb-3">
+                        {team.description}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {team.agents.map((agent) => (
+                          <span
+                            key={agent.id}
+                            className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                          >
+                            {agent.name}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-600 mb-3">
-                      {team.description}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {team.agents.map((agent) => (
-                        <span
-                          key={agent.id}
-                          className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                        >
-                          {agent.name}
-                        </span>
-                      ))}
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEditTeam(team)
+                      }}
+                      className="ml-2 flex-shrink-0"
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onEditTeam(team)
-                    }}
-                    className="ml-2 flex-shrink-0"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
+              ))}
 
               {filteredTeams.length === 0 && (
                 <div className="text-center py-8">
@@ -186,7 +186,7 @@ export default function TeamSelectorModal({
               )}
             </div>
           )}
-          </div>
+          {/* ↑ ここの直後にあった不要な </div> を削除しました */}
 
           {/* Footer */}
           <div className="flex justify-end pt-3 border-t">

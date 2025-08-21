@@ -180,21 +180,33 @@ class ChatService:
             payload["context"] = chat_request.context
         
         async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=payload)
-            response.raise_for_status()
-            
-            result = response.json()
-            return ChatResponse(
-                message=result.get("response", ""),
-                provider="ollama",
-                model=chat_request.model,
-                usage={
-                    "total_duration": result.get("total_duration"),
-                    "load_duration": result.get("load_duration"),
-                    "prompt_eval_count": result.get("prompt_eval_count"),
-                    "eval_count": result.get("eval_count")
-                }
-            )
+            try:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                
+                result = response.json()
+                return ChatResponse(
+                    message=result.get("response", ""),
+                    provider="ollama",
+                    model=chat_request.model,
+                    usage={
+                        "total_duration": result.get("total_duration"),
+                        "load_duration": result.get("load_duration"),
+                        "prompt_eval_count": result.get("prompt_eval_count"),
+                        "eval_count": result.get("eval_count")
+                    }
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Model '{chat_request.model}' not found. Please install the model first using: ollama pull {chat_request.model}"
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Ollama API error {e.response.status_code}: {e.response.text}"
+                    )
     
     @staticmethod
     async def _send_to_lm_studio(chat_request: ChatRequest) -> ChatResponse:

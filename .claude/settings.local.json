@@ -28,7 +28,8 @@
       "Bash(npm run build:*)",
       "Bash(node:*)",
       "Bash(cd:*)",
-      "Bash(where docker)"
+      "Bash(where docker)",
+      "Bash(docker:*)"
     ],
     "deny": [],
     "ask": []
