@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 3000
 
 # Start with a simple command that keeps the container running
-CMD ["sh", "-c", "while true; do npm run dev --hostname 0.0.0.0 || sleep 5; done"]
+CMD ["sh", "-c", "while true; do npm run dev || sleep 5; done"]

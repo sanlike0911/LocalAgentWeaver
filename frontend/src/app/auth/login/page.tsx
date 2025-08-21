@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { authApi } from '@/utils/api'
+import { useAuth } from '@/hooks/useAuth'
 
 const loginSchema = z.object({
   email: z.string().email('有効なメールアドレスを入力してください'),
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const { login, loading, isAuthenticated } = useAuth()
 
   const {
     register,
@@ -33,37 +34,39 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   })
 
+  // 既にログイン済みの場合はダッシュボードにリダイレクト
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [loading, isAuthenticated, router])
+
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true)
     setError('')
 
-    try {
-      const response = await authApi.login(data.email, data.password)
-      localStorage.setItem('token', response.data.access_token)
+    const result = await login(data.email, data.password)
+    
+    if (result.success) {
       router.push('/dashboard')
-    } catch (err: any) {
+    } else {
       // より詳細なエラーメッセージの処理
-      let errorMessage = 'ログインに失敗しました'
+      let errorMessage = result.error || 'ログインに失敗しました'
       
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail
-        if (detail.includes('Incorrect email or password')) {
-          errorMessage = 'メールアドレスまたはパスワードが間違っています。'
-        } else if (detail.includes('Inactive user')) {
-          errorMessage = 'このアカウントは無効です。管理者にお問い合わせください。'
-        } else if (detail.includes('validation')) {
-          errorMessage = '入力内容に誤りがあります。メールアドレスとパスワードを確認してください。'
-        } else {
-          errorMessage = detail
-        }
-      } else if (err.code === 'NETWORK_ERROR' || err.message.includes('Network Error')) {
+      if (errorMessage.includes('Incorrect email or password')) {
+        errorMessage = 'メールアドレスまたはパスワードが間違っています。'
+      } else if (errorMessage.includes('Inactive user')) {
+        errorMessage = 'このアカウントは無効です。管理者にお問い合わせください。'
+      } else if (errorMessage.includes('validation')) {
+        errorMessage = '入力内容に誤りがあります。メールアドレスとパスワードを確認してください。'
+      } else if (errorMessage.includes('Network Error')) {
         errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。'
       }
       
       setError(errorMessage)
-    } finally {
-      setIsLoading(false)
     }
+    
+    setIsLoading(false)
   }
 
   return (

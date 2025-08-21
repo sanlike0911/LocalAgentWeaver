@@ -4,20 +4,25 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
+    "dev:debug": "NODE_OPTIONS='--inspect' next dev -H 0.0.0.0 -p 3000",
+    "dev:debug-brk": "NODE_OPTIONS='--inspect-brk' next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "build:dev": "NODE_ENV=development next build",
     "start": "next start",
+    "start:debug": "NODE_OPTIONS='--inspect' next start -H 0.0.0.0 -p 3000",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "test": "jest",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
-    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.0.6",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-switch": "^1.2.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -35,7 +40,7 @@
     "tailwindcss": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5",
-    "zod": "^3.22.0",
+    "zod": "^3.25.76",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

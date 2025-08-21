@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, LogOut, MessageCircle, Trash2 } from 'lucide-react'
+import { Plus, LogOut, MessageCircle, Trash2, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { projectApi, Project } from '@/utils/api'
+import AuthWrapper from '@/components/AuthWrapper'
+import { useAuth } from '@/hooks/useAuth'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'プロジェクト名は必須です'),
@@ -28,13 +30,16 @@ const createProjectSchema = z.object({
 
 type CreateProjectForm = z.infer<typeof createProjectSchema>
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const router = useRouter()
+  const { logout } = useAuth()
 
   const {
     register,
@@ -46,21 +51,30 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/auth/login')
-      return
-    }
-    
     fetchProjects()
-  }, [router])
+  }, [])
 
   const fetchProjects = async () => {
     try {
       const response = await projectApi.getProjects()
-      setProjects(response.data)
-    } catch (err) {
-      setError('プロジェクトの取得に失敗しました')
+      // プロジェクトが配列でない場合でも正常に処理する
+      if (response.data && Array.isArray(response.data.projects)) {
+        setProjects(response.data.projects)
+      } else if (response.data && Array.isArray(response.data)) {
+        setProjects(response.data)
+      } else {
+        setProjects([])
+      }
+      setError('') // エラーをクリア
+    } catch (err: any) {
+      console.error('Failed to fetch projects:', err)
+      // 404エラーの場合はプロジェクトが0件として処理
+      if (err.response?.status === 404) {
+        setProjects([])
+        setError('')
+      } else {
+        setError('プロジェクトの取得に失敗しました')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -69,13 +83,19 @@ export default function DashboardPage() {
   const onCreateProject = async (data: CreateProjectForm) => {
     setIsCreating(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       const response = await projectApi.createProject({ name: data.name, description: data.description })
       setProjects([...projects, response.data])
+      setSuccessMessage('プロジェクトが正常に作成されました')
       reset()
       setIsDialogOpen(false)
+      
+      // 成功メッセージを3秒後に消去
+      setTimeout(() => setSuccessMessage(''), 3000)
     } catch (err: any) {
+      console.error('Failed to create project:', err)
       setError(err.response?.data?.detail || 'プロジェクトの作成に失敗しました')
     } finally {
       setIsCreating(false)
@@ -85,22 +105,34 @@ export default function DashboardPage() {
   const onDeleteProject = async (projectId: string) => {
     if (!confirm('プロジェクトを削除しますか？')) return
 
+    setError('')
+    setSuccessMessage('')
+
     try {
       await projectApi.deleteProject(projectId)
       setProjects(projects.filter(p => p.id !== projectId))
-    } catch (err) {
-      setError('プロジェクトの削除に失敗しました')
+      setSuccessMessage('プロジェクトが正常に削除されました')
+      
+      // 成功メッセージを3秒後に消去
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err: any) {
+      console.error('Failed to delete project:', err)
+      setError(err.response?.data?.detail || 'プロジェクトの削除に失敗しました')
     }
   }
 
   const onLogout = () => {
-    localStorage.removeItem('token')
-    router.push('/auth/login')
+    logout()
   }
 
   const openChat = (projectId: string) => {
     router.push(`/chat/${projectId}`)
   }
+
+  const filteredProjects = projects.filter(project =>
+    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
+  )
 
   if (isLoading) {
     return (
@@ -134,15 +166,31 @@ export default function DashboardPage() {
               {error}
             </div>
           )}
+          
+          {successMessage && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+              {successMessage}
+            </div>
+          )}
 
           <div className="mb-6">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  新規プロジェクト
-                </Button>
-              </DialogTrigger>
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="プロジェクトを検索..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="shrink-0">
+                    <Plus className="mr-2 h-4 w-4" />
+                    新規プロジェクト
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>新規プロジェクト作成</DialogTitle>
@@ -187,9 +235,21 @@ export default function DashboardPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
-          {projects.length === 0 ? (
+          {filteredProjects.length === 0 && projects.length > 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900">検索結果が見つかりませんでした</h3>
+                  <p className="text-gray-600 mt-2">
+                    検索条件を変更してみてください
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : projects.length === 0 ? (
             <Card>
               <CardContent className="py-8">
                 <div className="text-center">
@@ -202,7 +262,7 @@ export default function DashboardPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
+              {filteredProjects.map((project) => (
                 <Card key={project.id} className="hover:shadow-md transition-shadow">
                   <CardHeader>
                     <CardTitle className="flex justify-between items-start">
@@ -243,5 +303,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <AuthWrapper>
+      <DashboardPageContent />
+    </AuthWrapper>
   )
 }

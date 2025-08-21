@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -35,8 +33,8 @@ services:
       - JWT_ALGORITHM=HS256
       - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CORS_ORIGINS=http://localhost:3000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - LM_STUDIO_BASE_URL=http://host.docker.internal:1234
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LM_STUDIO_BASE_URL=http://localagentweaver-lmstudio:1234
       - UPLOAD_MAX_SIZE_MB=30
     ports:
       - "8000:8000"
@@ -55,7 +53,7 @@ services:
       dockerfile: Dockerfile
     container_name: localagentweaver-frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
     ports:

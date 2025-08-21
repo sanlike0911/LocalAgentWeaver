@@ -8,6 +8,8 @@ from app.models import Base
 from app.features.auth.router import router as auth_router
 from app.features.projects.router import router as projects_router
 from app.features.chat.router import router as chat_router
+from app.features.teams.router import router as teams_router
+from app.features.documents.router import router as documents_router
 
 
 @asynccontextmanager
@@ -40,6 +42,8 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
 app.include_router(projects_router, prefix="/api/projects", tags=["projects"])
 app.include_router(chat_router, prefix="/api/chat", tags=["chat"])
+app.include_router(teams_router, prefix="/api", tags=["teams"])
+app.include_router(documents_router, prefix="/api", tags=["documents"])
 
 
 @app.get("/")

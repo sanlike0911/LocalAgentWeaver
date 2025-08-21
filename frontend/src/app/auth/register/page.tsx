@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { authApi } from '@/utils/api'
+import { useAuth } from '@/hooks/useAuth'
 
 const registerSchema = z.object({
   username: z.string().min(2, 'ユーザー名は2文字以上で入力してください'),
@@ -30,6 +30,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const router = useRouter()
+  const { register: registerUser, login, loading, isAuthenticated } = useAuth()
 
   const {
     register,
@@ -39,50 +40,51 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   })
 
+  // 既にログイン済みの場合はダッシュボードにリダイレクト
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.push('/dashboard')
+    }
+  }, [loading, isAuthenticated, router])
+
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true)
     setError('')
     setSuccess('')
 
-    try {
-      // ユーザー登録
-      const registerResponse = await authApi.register(data.email, data.password, data.username)
+    // ユーザー登録
+    const registerResult = await registerUser(data.email, data.password, data.username)
+    
+    if (registerResult.success) {
       setSuccess('アカウントが正常に作成されました！自動的にログインしています...')
       
       // 自動ログイン
       setTimeout(async () => {
-        try {
-          const loginResponse = await authApi.login(data.email, data.password)
-          localStorage.setItem('token', loginResponse.data.access_token)
+        const loginResult = await login(data.email, data.password)
+        if (loginResult.success) {
           router.push('/dashboard')
-        } catch (loginErr: any) {
+        } else {
           setSuccess('')
           setError('アカウント作成は成功しましたが、ログインに失敗しました。ログインページからログインしてください。')
         }
       }, 2000)
-      
-    } catch (err: any) {
+    } else {
       setSuccess('')
       // より詳細なエラーメッセージの処理
-      let errorMessage = 'アカウント作成に失敗しました'
+      let errorMessage = registerResult.error || 'アカウント作成に失敗しました'
       
-      if (err.response?.data?.detail) {
-        const detail = err.response.data.detail
-        if (detail.includes('Email already registered')) {
-          errorMessage = 'このメールアドレスは既に登録されています。ログインページからログインしてください。'
-        } else if (detail.includes('validation')) {
-          errorMessage = '入力内容に誤りがあります。入力内容を確認してください。'
-        } else {
-          errorMessage = detail
-        }
-      } else if (err.code === 'NETWORK_ERROR' || err.message.includes('Network Error')) {
+      if (errorMessage.includes('Email already registered')) {
+        errorMessage = 'このメールアドレスは既に登録されています。ログインページからログインしてください。'
+      } else if (errorMessage.includes('validation')) {
+        errorMessage = '入力内容に誤りがあります。入力内容を確認してください。'
+      } else if (errorMessage.includes('Network Error')) {
         errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。'
       }
       
       setError(errorMessage)
-    } finally {
-      setIsLoading(false)
     }
+    
+    setIsLoading(false)
   }
 
   return (

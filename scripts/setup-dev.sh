@@ -175,7 +175,33 @@ except:
 case $llm_env in
     "ollama")
         if test_llm_connection "http://localhost:11434" "Ollama"; then
-            echo "🎉 Ollama setup completed successfully!"
+            echo "🎉 Ollama connection successful!"
+            
+            # Check if llama3 model is available
+            echo "🔍 Checking for llama3 model..."
+            model_exists=$(curl -s "http://localhost:11434/api/tags" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    models = [model['name'] for model in data.get('models', [])]
+    print('true' if any('llama3' in model for model in models) else 'false')
+except:
+    print('false')
+")
+            
+            if [ "$model_exists" = "true" ]; then
+                echo "✅ llama3 model is already available"
+            else
+                echo "📥 llama3 model not found. Downloading..."
+                echo "   This may take several minutes depending on your internet connection."
+                docker compose exec -T ollama ollama pull llama3
+                if [ $? -eq 0 ]; then
+                    echo "✅ llama3 model downloaded successfully!"
+                else
+                    echo "❌ Failed to download llama3 model. You can download it later with:"
+                    echo "   docker compose exec ollama ollama pull llama3"
+                fi
+            fi
         else
             echo "⚠️  Ollama connection failed. Check logs: docker compose logs ollama"
         fi

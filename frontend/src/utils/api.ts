@@ -53,21 +53,21 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
+    api.post('/api/auth/login', { email, password }),
   register: (email: string, password: string, username: string) =>
-    api.post('/auth/register', { email, password, username }),
-  me: () => api.get('/auth/me'),
+    api.post('/api/auth/register', { email, password, username }),
+  me: () => api.get('/api/auth/me'),
 }
 
 // Project API
 export const projectApi = {
-  getProjects: () => api.get('/projects'),
-  getProject: (id: string) => api.get(`/projects/${id}`),
+  getProjects: () => api.get('/api/projects'),
+  getProject: (id: string) => api.get(`/api/projects/${id}`),
   createProject: (data: { name: string; description?: string }) =>
-    api.post('/projects', data),
+    api.post('/api/projects', data),
   updateProject: (id: string, data: { name: string; description?: string }) =>
-    api.put(`/projects/${id}`, data),
-  deleteProject: (id: string) => api.delete(`/projects/${id}`),
+    api.put(`/api/projects/${id}`, data),
+  deleteProject: (id: string) => api.delete(`/api/projects/${id}`),
 }
 
 // Chat API
@@ -78,8 +78,9 @@ export const chatApi = {
     provider: 'ollama' | 'lm_studio';
     model: string;
     context?: string;
-  }) => api.post('/chat/send', data),
-  getChatHistory: (projectId: string) => api.get(`/chat/history/${projectId}`),
+  }) => api.post('/api/chat/send', data),
+  getChatHistory: (projectId: string) => api.get(`/api/chat/history/${projectId}`),
+  checkLLMHealth: () => api.get('/api/chat/health'),
 }
 
 export default api

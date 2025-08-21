@@ -16,3 +16,5 @@ class Project(Base):
 
     # Relationships
     owner = relationship("User", back_populates="projects")
+    teams = relationship("Team", back_populates="project", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="project", cascade="all, delete-orphan")
