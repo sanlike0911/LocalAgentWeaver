@@ -190,14 +190,15 @@ function ChatPageContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center py-4">
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => router.push('/dashboard')}
-              className="mr-4"
+              className="mr-4 p-2"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">{project.name}</h1>
