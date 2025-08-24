@@ -9,27 +9,40 @@ LocalAgentWeaver
 ローカル環境で動作するLLM（Ollama/LM Studio）と連携し、チームでのドキュメントベースの対話やアイデア創出を支援する、セキュアなAIエージェントプラットフォーム。ユーザーはプロジェクトを作成し、ドキュメントをアップロードし、AIエージェントからなる「チーム」と対話することで、高度な情報分析やコンテンツ生成を行う。
 
 #### 1.3. 主要機能
-- ユーザー認証・管理
-- プロジェクト管理
-- LLM機能
+- **ユーザー認証・管理**
+- **プロジェクト管理**
+- **LLM機能**
   - ローカルLLM（Ollama/LM Studio）との連携機能
-  - ローカルLLM（Ollama/LM Studio）の**LLMモデル自動管理機能**（未インストールモデルの自動ダウンロード・インストール）
-- チャット機能: ユーザーがフロントエンドで質問を送信します。
-  - 質問のベクトル化: ユーザーの質問も、ドキュメントと同じ埋め込みモデルを使ってベクトルに変換されます。これにより、質問とドキュメントの内容を同じ基準で比較する。
-  - 類似度検索: サーバーが質問のベクトルを使い、現在のワークスペースのベクトルデータベースに対して類似度検索を実行します。データベースは、質問のベクトルと意味的に最も近いテキストチャンクを複数返す。
-  - コンテキストの拡張: 検索されたテキストチャンクは、ユーザーの元の質問と組み合わされ、LLMへの指示（プロンプト）が拡張されます。これにより、LLMは回答の根拠となる情報を手に入れます。
-  - LLMへの問い合わせ: 拡張されたプロンプトが、選択されたLLMに送信する。
-  - 回答の生成: LLMは与えられたコンテキストに基づいて、AIエージェントチームが質問に対する回答を生成します。
-  - ユーザーへの表示: 生成された回答が、出典元となったドキュメントの引用情報とともに、チャットインターフェースに表示されます。
-- RAG機能（Retrieval-Augmented Generation）
-  - ドキュメントのアップロード。システム設定として、プロジェクト単位にアップロード件数「default: 100件」、ファイルサイズの上限を「default: 30MB」とする。
-  - 対応ファイル形式：TXT、MD、PDF、EXCEL、WORD、POWERPOINT
-  - テキスト抽出：アップロードされたファイルはコレクターサービスで、敵kストコンテンツとして抽出する。
-  - チャンキング（分割）：抽出されたテキストは、扱いやすいように小さな塊（チャンク）に分割されます。これは、情報を効率的にベクトル化し、検索精度を高めるための重要なステップ。
-  - 埋め込み（ベクトル化）：各テキストチャンクが選択された埋め込みモデルに渡され、その意味内容を表すベクトルに変換されます。
-  - ベクトル格納: 生成されたベクトルは、元のテキストチャンクや関連メタデータと共に、指定されたベクトルデータベースに保存されます。
-- AIエージェントチームの作成・管理・選択
-- プロジェクトの共有機能
+  - **LLMモデル自動管理機能**（未インストールモデルの自動ダウンロード・インストール）
+  - 応答時間測定・表示機能
+- **インテリジェントチャット機能**
+  - AIエージェントチームとの対話インターフェース
+  - リアルタイムチャット履歴管理
+  - プロバイダー・モデル選択機能
+  - **RAG統合チャット処理フロー:**
+    1. **質問受信**: ユーザーがフロントエンドで質問を送信
+    2. **ベクトル化**: 質問を埋め込みモデルでベクトルに変換
+    3. **類似度検索**: 現在のプロジェクトのベクトルデータベースに対して類似度検索を実行
+    4. **コンテキスト拡張**: 検索されたテキストチャンクを元の質問と組み合わせてプロンプトを拡張
+    5. **LLM問い合わせ**: 拡張されたプロンプトを選択されたLLMに送信
+    6. **回答生成**: AIエージェントチームが関連情報に基づいて回答を生成
+    7. **結果表示**: 生成された回答を出典元ドキュメントの引用情報とともに表示
+- **RAG機能（Retrieval-Augmented Generation）**
+  - **ドキュメント管理**
+    - ファイルアップロード（プロジェクト単位: default 100件、ファイルサイズ上限: default 30MB）
+    - 対応ファイル形式：**TXT、MD、PDF、EXCEL、WORD、POWERPOINT**
+    - 有効/無効切り替え機能
+  - **LlamaIndex統合RAG処理パイプライン**
+    - **SimpleDirectoryReader**: 各ファイル形式に最適化されたコンテンツ抽出
+    - **NodeParser**: 意味単位での効率的なテキスト分割・チャンキング
+    - **VectorStoreIndex**: LanceDB/Qdrant統合による高速ベクトルインデックス
+    - **RetrieverQueryEngine**: 高精度な類似度検索・コンテキスト生成
+    - **高速アクセス最適化**: LlamaIndexとベクトルDBの統合による<100ms応答時間
+- **AIエージェントチーム管理**
+  - チーム作成・編集・選択機能
+  - エージェント構成管理
+  - プリセットチームテンプレート
+- **プロジェクト共有機能**
 
 #### 1.4. 実装上の共通指針（コーディング規約）
 
@@ -48,7 +61,7 @@ LocalAgentWeaver
 ### 2. システムアーキテクチャ
 
 #### 2.1. システム構成図
-LocalAgentWeaverは、フロントエンド、バックエンド、データベース、そしてユーザーのローカル環境で動作するLLM実行環境から構成されます。バックエンドは、ビジネスロジックの中核を担い、LLM実行環境へのリクエストを中継・管理します。
+LocalAgentWeaverは、フロントエンド、バックエンド、データベース群（メタデータ、ベクトル、キャッシュ）、そしてユーザーのローカル環境で動作するLLM実行環境から構成されます。RAG機能の高速化のため、専用ベクトルデータベースを導入します。
 
 ```
  +-----------+      +----------------------+      +------------------+
@@ -68,13 +81,14 @@ LocalAgentWeaverは、フロントエンド、バックエンド、データベ�
                                            +--------------------------------+
                                                            ^
                                                            |
-                                       +-------------------+--------------------+
-                                       |                   |                    |
-                              +--------v---------+ +-------v--------+
-                              |                  | |                |
-                              |    PostgreSQL    | |      Redis     |
-                              |  (データ永続化)  | | (キャッシュ)   |
-                              +------------------+ +----------------+
+                       +-------------------+---------------+--------------------+
+                       |                   |               |                    |
+              +--------v---------+ +-------v--------+ +----v---------+ +-------v--------+
+              |                  | |                | |              | |                |
+              |    PostgreSQL    | | LanceDB/Qdrant | |    Redis     | |   Embedding    |
+              |  (メタデータ     | |  (ベクトルDB)   | | (キャッシュ) | |    Service     |
+              |   永続化)        | | (RAG高速検索)  | |              | | (ベクトル生成) |
+              +------------------+ +----------------+ +--------------+ +----------------+
 ```
 
 #### 2.2. 技術スタック
@@ -82,33 +96,71 @@ LocalAgentWeaverは、フロントエンド、バックエンド、データベ�
 | :--- | :--- | :--- |
 | **バックエンド** | Python, FastAPI | LLMとの親和性が高く、高性能。WebSocketによるリアルタイム通信に対応。 |
 | **フロントエンド** | TypeScript, React, Next.js | 型安全で堅牢な開発が可能。SSR/SSGによる高いパフォーマンスを実現。 |
-| **データベース** | PostgreSQL | リレーショナルデータの永続化に適した、信頼性の高いOSS RDBMS。 |
-| **キャッシュ** | Redis | セッション管理や高速なデータキャッシュによるパフォーマンス向上。 |
+| **メタデータDB** | PostgreSQL | ユーザー、プロジェクト、チーム等のリレーショナルデータ永続化。 |
+| **ベクトルDB** | **LanceDB (開発環境) / Qdrant (本番環境)** | **RAG機能の高速類似度検索に特化。LanceDBは軽量で開発に適し、Qdrantは高性能・高可用性。** |
+| **RAGフレームワーク** | **LlamaIndex** | **AnythingLLM実証済みのデータ中心RAGフレームワーク。FastAPI統合容易、高速インデックス・検索機能。** |
+| **キャッシュ** | Redis | セッション管理、チャット履歴、モデル情報等の高速キャッシュ。 |
+| **埋め込みサービス** | **sentence-transformers / Ollama Embeddings** | **ローカル実行可能な多言語対応埋め込みモデル。プライバシー保護とコスト最適化。** |
 | **UIフレームワーク** | Tailwind CSS, Shadcn/ui | 高いカスタマイズ性とコンポーネント指向による効率的なUI開発。 |
-| **LLM実行環境** | **Ollama / LM Studio (設定により切替可能)** | **ローカル環境でセキュアにLLMを実行するため。ユーザーの既存環境や好みのモデルに応じて選択肢を提供。** |
+| **LLM実行環境** | **Ollama / LM Studio (設定により切替可能)** | **ローカル環境でセキュアにLLMを実行。ユーザーの既存環境や好みに対応。** |
 | **コンテナ化** | Docker, Docker Compose | 開発・本番環境の差異をなくし、ポータビリティを確保。 |
 | **テスト** | Pytest (BE), Jest/Playwright (FE) | TDDを実践し、コード品質を担保するための標準的なテストフレームワーク。|
 
 #### 2.3. `docker-compose.yml` の構成
-プロジェクトのサービス群は`docker-compose.yml`で定義される。特にLLM実行環境として、OllamaはDockerサービスとして管理可能とする。
+RAG機能のためのベクトルデータベース群と埋め込みサービスを含む、完全なサービススタックを定義します。
 
 ```yaml
 # docker-compose.yml の構成概要
 version: '3.8'
 services:
+  # Core Application Services
   backend: ...
   frontend: ...
-  db: ...
-  redis: ...
+  
+  # Database Layer
+  postgresql: ...        # メタデータ永続化
+  redis: ...             # キャッシュ・セッション管理
+  
+  # RAG Vector Database (開発環境はLanceDB、本番環境はQdrant)
+  lancedb:
+    image: lancedb/lancedb:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./lancedb-data:/data
+    environment:
+      - LANCE_DB_URI=/data
+    profiles:
+      - development
+  
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./qdrant-data:/qdrant/storage
+    profiles:
+      - production
 
-  # プロファイル機能により、選択的に起動されるOllamaサービス
+  # Embedding Service
+  embedding-service:
+    image: sentence-transformers/sentence-transformers
+    ports:
+      - "8001:8000"
+    environment:
+      - MODEL_NAME=all-MiniLM-L6-v2  # 多言語対応軽量モデル
+    volumes:
+      - ./embedding-models:/models
+
+  # LLM実行環境（選択的起動）
   ollama:
     image: ollama/ollama
     ports:
       - "11434:11434"
     volumes:
       - ./ollama-data:/root/.ollama
-    # GPUを利用する場合の推奨設定 (NVIDIA Container Toolkitが必要)
+    # GPUを利用する場合の推奨設定
     deploy:
       resources:
         reservations:
@@ -117,35 +169,63 @@ services:
               count: 1
               capabilities: [gpu]
     profiles:
-      - ollama # '--profile ollama' オプションで起動
+      - ollama
 ```
 
 #### 2.4. ファイル・ディレクトリ構造
-フィーチャーベースのディレクトリ構造を採用し、機能ごとの独立性と保守性を高める。
+RAG機能とベクトルデータベース統合を考慮したフィーチャーベースの構造を採用します。
 
 ```plaintext
 LocalAgentWeaver/
 ├── backend/
 │   ├── app/
-│   │   ├── features/          # 機能ごとのモジュール (auth, projects, teams, chat)
-│   │   ├── core/              # 設定、DB接続など共通のコア機能
-│   │   ├── models/            # SQLAlchemyのデータモデル定義
+│   │   ├── features/          # 機能ごとのモジュール
+│   │   │   ├── auth/          # 認証機能
+│   │   │   ├── projects/      # プロジェクト管理
+│   │   │   ├── teams/         # チーム・エージェント管理
+│   │   │   ├── chat/          # チャット機能
+│   │   │   ├── documents/     # ドキュメント管理
+│   │   │   └── rag/           # RAG機能（ベクトル化、検索）
+│   │   ├── core/              # 共通コア機能
+│   │   │   ├── config.py      # 設定管理
+│   │   │   ├── database.py    # PostgreSQL接続
+│   │   │   └── vector_db.py   # ベクトルDB接続（LanceDB/Qdrant）
+│   │   ├── services/          # 外部サービス連携
+│   │   │   ├── llamaindex_service.py # LlamaIndexによるRAG処理
+│   │   │   ├── embedding_service.py  # 埋め込みサービス
+│   │   │   ├── llm_service.py        # LLM連携
+│   │   │   └── vector_service.py     # ベクトル操作（LanceDB/Qdrant）
+│   │   ├── models/            # データモデル定義
+│   │   │   ├── postgresql/    # SQLAlchemyモデル
+│   │   │   └── vector/        # ベクトルデータモデル
 │   │   └── tests/             # テストコード
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
-│   │   ├── features/          # 機能ごとのコンポーネント、フック、APIクライアント
-│   │   ├── components/ui/     # Shadcn/uiによる共通UIコンポーネント
+│   │   ├── features/          # 機能ごとのコンポーネント
+│   │   │   ├── auth/
+│   │   │   ├── projects/
+│   │   │   ├── teams/
+│   │   │   ├── chat/
+│   │   │   └── documents/     # ドキュメント管理UI
+│   │   ├── components/ui/     # 共通UIコンポーネント
 │   │   ├── hooks/             # 共通カスタムフック
 │   │   └── utils/             # 共通ユーティリティ関数
 │   ├── package.json
 │   └── Dockerfile
+├── data/                      # 永続化データ
+│   ├── postgresql/            # PostgreSQLデータ
+│   ├── lancedb-data/          # LanceDBベクトルデータ
+│   ├── qdrant-data/           # Qdrantベクトルデータ
+│   ├── embedding-models/      # 埋め込みモデル
+│   └── ollama-data/           # Ollamaモデルデータ
 ├── scripts/                   # セットアップ用スクリプト
 │   ├── setup-dev.sh
-│   └── setup-prod.sh
+│   ├── setup-prod.sh
+│   └── init-vector-db.sh      # ベクトルDB初期化
 ├── .env.example               # 環境変数テンプレート
-└── docker-compose.yml         # 開発・本番環境定義
+└── docker-compose.yml         # サービス定義
 ```
 
 ---

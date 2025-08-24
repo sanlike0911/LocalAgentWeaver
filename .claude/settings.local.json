@@ -32,7 +32,9 @@
       "Bash(docker:*)",
       "WebFetch(domain:ollama.com)",
       "WebFetch(domain:lmstudio.ai)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
