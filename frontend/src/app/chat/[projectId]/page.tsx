@@ -322,23 +322,19 @@ function ChatPageContent() {
                         }`}
                       >
                         <p className="text-sm">{message.content}</p>
-                        <div className={`text-xs mt-1 ${
+                        <p className={`text-xs mt-1 ${
                           message.sender === 'user' 
                             ? 'text-primary-foreground/70' 
                             : 'text-gray-500'
                         }`}>
-                          <p>
-                            {message.timestamp.toLocaleTimeString('ja-JP', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                          </p>
+                          {message.timestamp.toLocaleTimeString('ja-JP', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
                           {message.sender === 'assistant' && message.responseTime && (
-                            <p className="mt-0.5 text-xs">
-                              {formatResponseTime(message.responseTime)}
-                            </p>
+                            formatResponseTime(message.responseTime)
                           )}
-                        </div>
+                        </p>
                       </div>
                       {message.sender === 'user' && (
                         <div className="flex-shrink-0">
