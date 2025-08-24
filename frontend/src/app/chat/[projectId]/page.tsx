@@ -15,12 +15,14 @@ import TeamEditorModal from '@/features/teams/components/TeamEditorModal'
 import DocumentManager from '@/features/documents/components/DocumentManager'
 import ModelSelector from '@/features/chat/components/ModelSelector'
 import AuthWrapper from '@/components/AuthWrapper'
+import { formatResponseTime } from '@/utils/timeFormat'
 
 interface Message {
   id: string
   content: string
   sender: 'user' | 'assistant'
   timestamp: Date
+  responseTime?: number // ミリ秒単位の応答時間（アシスタントメッセージのみ）
 }
 
 // Document interface is now in DocumentManager
@@ -131,6 +133,9 @@ function ChatPageContent() {
     setInputMessage('')
     setIsLoading(true)
 
+    // 応答時間測定開始
+    const startTime = Date.now()
+
     try {
       const response = await chatApi.sendMessage({
         project_id: projectId,
@@ -139,23 +144,33 @@ function ChatPageContent() {
         model: selectedModel
       })
       
+      // 応答時間計算
+      const endTime = Date.now()
+      const responseTime = endTime - startTime
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: response.data.message,
         sender: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(),
+        responseTime
       }
 
       setMessages(prev => [...prev, assistantMessage])
     } catch (err: any) {
       setError(err.response?.data?.detail || 'メッセージの送信に失敗しました')
       
+      // エラー時も応答時間を記録
+      const endTime = Date.now()
+      const responseTime = endTime - startTime
+      
       // フォールバック応答
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: `申し訳ございません。LLMサーバーに接続できませんでした。Ollama/LM Studioが起動していることを確認してください。`,
         sender: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(),
+        responseTime
       }
       setMessages(prev => [...prev, assistantMessage])
     } finally {
@@ -307,16 +322,23 @@ function ChatPageContent() {
                         }`}
                       >
                         <p className="text-sm">{message.content}</p>
-                        <p className={`text-xs mt-1 ${
+                        <div className={`text-xs mt-1 ${
                           message.sender === 'user' 
                             ? 'text-primary-foreground/70' 
                             : 'text-gray-500'
                         }`}>
-                          {message.timestamp.toLocaleTimeString('ja-JP', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </p>
+                          <p>
+                            {message.timestamp.toLocaleTimeString('ja-JP', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                          {message.sender === 'assistant' && message.responseTime && (
+                            <p className="mt-0.5 text-xs">
+                              {formatResponseTime(message.responseTime)}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       {message.sender === 'user' && (
                         <div className="flex-shrink-0">

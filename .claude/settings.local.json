@@ -31,7 +31,8 @@
       "Bash(where docker)",
       "Bash(docker:*)",
       "WebFetch(domain:ollama.com)",
-      "WebFetch(domain:lmstudio.ai)"
+      "WebFetch(domain:lmstudio.ai)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
