@@ -1,18 +1,21 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useParams } from "next/navigation";
 import { Settings, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import SettingsModal from "./SettingsModal";
 import Logo from "./Logo";
+import { projectApi } from "@/utils/api";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams();
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [projectName, setProjectName] = useState<string>("");
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // Close on outside click
@@ -26,6 +29,24 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // fetch project name when projectId is present (e.g., chat page)
+  useEffect(() => {
+    const projectId = params?.projectId as string | undefined;
+    if (!projectId) {
+      setProjectName("");
+      return;
+    }
+    (async () => {
+      try {
+        const res = await projectApi.getProject(projectId);
+        setProjectName(res.data?.name ?? "");
+      } catch {
+        setProjectName("");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.projectId]);
+
   // Hide header on auth pages
   if (pathname?.startsWith("/auth")) return null;
 
@@ -36,13 +57,21 @@ export default function Header() {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 bg-primary text-primary-foreground px-3 py-1 rounded">
         メインコンテンツへスキップ
       </a>
-      <div className="container flex h-14 items-center justify-between">
+      <div className="mx-auto w-full max-w-[1400px] pl-[20px] pr-5 flex h-14 items-center justify-between">
         <button
           aria-label="ホームに戻る"
           className="font-semibold text-sm md:text-base"
           onClick={() => router.push("/dashboard")}
         >
           <Logo size={36} />
+          {projectName && (
+            <span
+              className="ml-3 hidden sm:inline-block font-medium truncate max-w-[50vw]"
+              title={projectName}
+            >
+              {projectName}
+            </span>
+          )}
         </button>
 
         <div className="flex items-center gap-2">
