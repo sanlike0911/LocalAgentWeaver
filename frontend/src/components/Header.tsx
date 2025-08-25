@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Settings, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import SettingsModal from "./SettingsModal";
+import Logo from "./Logo";
 
 export default function Header() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function Header() {
           className="font-semibold text-sm md:text-base"
           onClick={() => router.push("/dashboard")}
         >
-          LocalAgentWeaver
+          <Logo size={36} />
         </button>
 
         <div className="flex items-center gap-2">
