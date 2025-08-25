@@ -57,21 +57,19 @@ export default function Header() {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 bg-primary text-primary-foreground px-3 py-1 rounded">
         メインコンテンツへスキップ
       </a>
-      <div className="mx-auto w-full max-w-[1400px] pl-[20px] pr-5 flex h-14 items-center justify-between">
+      <div className="mx-auto w-full pl-[20px] pr-5 flex h-14 items-center justify-between">
         <button
           aria-label="ホームに戻る"
           className="font-semibold text-sm md:text-base"
           onClick={() => router.push("/dashboard")}
         >
           <Logo size={36} />
-          {projectName && (
-            <span
-              className="ml-3 hidden sm:inline-block font-medium truncate max-w-[50vw]"
-              title={projectName}
-            >
-              {projectName}
-            </span>
-          )}
+          <span
+            className="ml-3 hidden sm:inline-block font-medium truncate max-w-[50vw]"
+            title={projectName || "LocalAgentWeaver"}
+          >
+            {projectName || "LocalAgentWeaver"}
+          </span>
         </button>
 
         <div className="flex items-center gap-2">
