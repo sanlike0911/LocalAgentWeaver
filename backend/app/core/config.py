@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     LM_STUDIO_BASE_URL: str = "http://localhost:1234"
     
+    # Embeddings / Vector DB
+    EMBEDDING_PROVIDER: str = "ollama"
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
+    LANCE_DB_DIR: str = "data/lancedb"
+    
+    # Node Parser / Chunking Settings
+    CHUNK_SIZE: int = 1024
+    CHUNK_OVERLAP: int = 128
+    PARAGRAPH_SEPARATOR: str = "\n\n\n"
+    
     # File Upload
     UPLOAD_MAX_SIZE_MB: int = 30
     UPLOAD_DIR: str = "uploads"

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -11,6 +11,8 @@ class Project(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    chunking_strategy = Column(String, default="sentence")  # Default chunking strategy
+    chunking_config = Column(JSON, default={})  # Custom chunking configuration
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

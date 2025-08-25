@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Upload, FileText, Trash2, AlertCircle, CheckCircle, Clock, RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { documentsApi, Document, UploadDocumentRequest } from '@/features/documents/api'
+import { Progress } from '@/components/ui/progress'
+import { documentsApi, Document, UploadDocumentRequest, DocumentProcessingStatus } from '@/features/documents/api'
 
 interface DocumentManagerProps {
   projectId: number
@@ -20,6 +21,9 @@ export default function DocumentManager({
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [dragActive, setDragActive] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
+  const [processingStatus, setProcessingStatus] = useState<DocumentProcessingStatus[]>([])
+  const [statusRefreshInterval, setStatusRefreshInterval] = useState<NodeJS.Timeout | null>(null)
 
   // ドキュメント一覧を取得
   const fetchDocuments = useCallback(async () => {
@@ -39,11 +43,47 @@ export default function DocumentManager({
     }
   }, [projectId])
 
+  // 処理状況を取得
+  const fetchProcessingStatus = useCallback(async () => {
+    if (!projectId) return
+
+    try {
+      const response = await documentsApi.getProcessingStatus(projectId)
+      setProcessingStatus(response.data || [])
+      
+      // 処理中のドキュメントがあるかチェック
+      const hasUnprocessed = response.data?.some((status: DocumentProcessingStatus) => !status.processed)
+      
+      if (hasUnprocessed && !statusRefreshInterval) {
+        // 5秒間隔で処理状況を更新
+        const interval = setInterval(() => {
+          fetchProcessingStatus()
+        }, 5000)
+        setStatusRefreshInterval(interval)
+      } else if (!hasUnprocessed && statusRefreshInterval) {
+        // 全ての処理が完了したら更新を停止
+        clearInterval(statusRefreshInterval)
+        setStatusRefreshInterval(null)
+        fetchDocuments() // 最新のドキュメント情報を取得
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch processing status:', err)
+    }
+  }, [projectId, statusRefreshInterval, fetchDocuments])
+
   useEffect(() => {
     if (projectId) {
       fetchDocuments()
+      fetchProcessingStatus()
     }
-  }, [projectId, fetchDocuments])
+    
+    // クリーンアップ
+    return () => {
+      if (statusRefreshInterval) {
+        clearInterval(statusRefreshInterval)
+      }
+    }
+  }, [projectId, fetchDocuments, fetchProcessingStatus])
 
   // ファイルアップロード処理
   const handleFileUpload = async (files: FileList | null) => {
@@ -51,32 +91,60 @@ export default function DocumentManager({
 
     setUploading(true)
     setError('')
+    setUploadProgress({}) // 進行状況をリセット
 
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // ファイルサイズチェック（30MB制限）
-        const maxSize = 30 * 1024 * 1024 // 30MB
-        if (file.size > maxSize) {
-          throw new Error(`${file.name}: ファイルサイズが30MBを超えています`)
-        }
+      const uploadPromises = Array.from(files).map(async (file, index) => {
+        const fileKey = `${file.name}_${index}`
+        
+        try {
+          // ファイルサイズチェック（30MB制限）
+          const maxSize = 30 * 1024 * 1024 // 30MB
+          if (file.size > maxSize) {
+            setUploadProgress(prev => ({ ...prev, [fileKey]: -1 })) // エラー状態
+            throw new Error(`${file.name}: ファイルサイズが30MBを超えています`)
+          }
 
-        // 対応ファイル形式チェック
-        const allowedTypes = ['.pdf', '.txt', '.md', '.docx']
-        const fileExt = '.' + file.name.split('.').pop()?.toLowerCase()
-        if (!allowedTypes.includes(fileExt)) {
-          throw new Error(`${file.name}: 対応していないファイル形式です (${allowedTypes.join(', ')})`)
-        }
+          // 対応ファイル形式チェック
+          const allowedTypes = ['.pdf', '.txt', '.md', '.docx', '.xlsx', '.xls', '.pptx']
+          const fileExt = '.' + file.name.split('.').pop()?.toLowerCase()
+          if (!allowedTypes.includes(fileExt)) {
+            setUploadProgress(prev => ({ ...prev, [fileKey]: -1 })) // エラー状態
+            throw new Error(`${file.name}: 対応していないファイル形式です (${allowedTypes.join(', ')})`)
+          }
 
-        const uploadData: UploadDocumentRequest = {
-          project_id: projectId,
-          file: file
-        }
+          // アップロード開始
+          setUploadProgress(prev => ({ ...prev, [fileKey]: 0 }))
 
-        return await documentsApi.uploadDocument(uploadData)
+          const uploadData: UploadDocumentRequest = {
+            project_id: projectId,
+            file: file
+          }
+
+          // 模擬進行状況更新（実際のAPIが進行状況をサポートしていない場合）
+          setUploadProgress(prev => ({ ...prev, [fileKey]: 50 }))
+          
+          const response = await documentsApi.uploadDocument(uploadData)
+          
+          // アップロード完了
+          setUploadProgress(prev => ({ ...prev, [fileKey]: 100 }))
+          
+          return response
+        } catch (error) {
+          setUploadProgress(prev => ({ ...prev, [fileKey]: -1 })) // エラー状態
+          throw error
+        }
       })
 
       await Promise.all(uploadPromises)
       await fetchDocuments() // 一覧を再取得
+      await fetchProcessingStatus() // 処理状況の監視を開始
+      
+      // 成功後、3秒後に進行状況をクリア
+      setTimeout(() => {
+        setUploadProgress({})
+      }, 3000)
+      
     } catch (err: any) {
       console.error('Failed to upload documents:', err)
       setError(err.message || 'ファイルのアップロードに失敗しました')
@@ -109,7 +177,7 @@ export default function DocumentManager({
   // ドキュメント有効/無効切替
   const toggleDocumentActive = async (document: Document) => {
     try {
-      await documentsApi.updateDocument(parseInt(document.id), {
+      await documentsApi.updateDocument(document.id, {
         is_active: !document.is_active
       })
       
@@ -129,12 +197,12 @@ export default function DocumentManager({
 
   // ドキュメント削除
   const deleteDocument = async (document: Document) => {
-    if (!confirm(`「${document.filename}」を削除しますか？この操作は取り消せません。`)) {
+    if (!confirm(`「${document.original_filename}」を削除しますか？この操作は取り消せません。`)) {
       return
     }
 
     try {
-      await documentsApi.deleteDocument(parseInt(document.id))
+      await documentsApi.deleteDocument(document.id)
       setDocuments(docs => docs.filter(doc => doc.id !== document.id))
     } catch (err: any) {
       console.error('Failed to delete document:', err)
@@ -152,16 +220,11 @@ export default function DocumentManager({
   }
 
   // 処理状況アイコン
-  const getStatusIcon = (status: Document['processing_status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'processing':
-        return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />
+  const getStatusIcon = (processed: boolean) => {
+    if (processed) {
+      return <CheckCircle className="h-4 w-4 text-green-500" />
+    } else {
+      return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
     }
   }
 
@@ -186,7 +249,7 @@ export default function DocumentManager({
         id="file-upload"
         type="file"
         multiple
-        accept=".pdf,.txt,.md,.docx"
+        accept=".pdf,.txt,.md,.docx,.xlsx,.xls,.pptx"
         onChange={(e) => handleFileUpload(e.target.files)}
         className="hidden"
       />
@@ -203,6 +266,69 @@ export default function DocumentManager({
           >
             閉じる
           </Button>
+        </div>
+      )}
+
+      {/* アップロード進行状況表示 */}
+      {Object.keys(uploadProgress).length > 0 && (
+        <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-700 flex items-center">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            アップロード進行状況
+          </h4>
+          {Object.entries(uploadProgress).map(([fileKey, progress]) => {
+            const [filename] = fileKey.split('_')
+            return (
+              <div key={fileKey} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 truncate">{filename}</span>
+                  <span className={`text-sm font-medium ${
+                    progress === -1 ? 'text-red-600' : 
+                    progress === 100 ? 'text-green-600' : 'text-blue-600'
+                  }`}>
+                    {progress === -1 ? 'エラー' : 
+                     progress === 100 ? '完了' : `${progress}%`}
+                  </span>
+                </div>
+                <Progress 
+                  value={progress === -1 ? 100 : progress} 
+                  className={`h-2 ${progress === -1 ? '[&>div]:bg-red-500' : 
+                    progress === 100 ? '[&>div]:bg-green-500' : '[&>div]:bg-blue-500'}`}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ベクトル化進行状況表示 (Task 25) */}
+      {processingStatus.some(status => !status.processed) && (
+        <div className="space-y-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-800 flex items-center">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ドキュメント処理状況
+          </h4>
+          <div className="space-y-2">
+            {processingStatus
+              .filter(status => !status.processed)
+              .map((status) => (
+                <div key={status.document_id} className="flex items-center justify-between text-sm">
+                  <span className="text-blue-700 truncate flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {status.filename}
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-blue-600">
+                      {formatFileSize(status.file_size)}
+                    </span>
+                    <span className="text-xs text-blue-600">ベクトル化中...</span>
+                  </div>
+                </div>
+              ))}
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            💡 ドキュメントが処理されるとRAG検索で活用されます
+          </p>
         </div>
       )}
 
@@ -231,7 +357,7 @@ export default function DocumentManager({
               ファイルをドラッグ&ドロップ、またはクリックしてアップロード
             </p>
             <p className="text-xs text-gray-400">
-              PDF, TXT, MD, DOCX (最大30MB)
+              PDF, TXT, MD, DOCX, XLSX, XLS, PPTX (最大30MB)
             </p>
           </>
         )}
@@ -268,7 +394,7 @@ export default function DocumentManager({
               <div className="relative">
                 <FileText className="h-6 w-6 text-gray-600" />
                 <div className="absolute -top-1 -right-1">
-                  {getStatusIcon(document.processing_status)}
+                  {getStatusIcon(document.processed)}
                 </div>
               </div>
             </div>
@@ -277,7 +403,7 @@ export default function DocumentManager({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {document.filename}
+                  {document.original_filename}
                 </p>
                 <div className="flex items-center space-x-2">
                   {/* 有効/無効スイッチ */}
@@ -308,13 +434,13 @@ export default function DocumentManager({
                 <span className="text-xs text-gray-500">
                   {formatFileSize(document.file_size)}
                 </span>
-                {document.chunk_count && (
+                {document.chunks && document.chunks.length > 0 && (
                   <span className="text-xs text-gray-500">
-                    {document.chunk_count} チャンク
+                    {document.chunks.length} チャンク
                   </span>
                 )}
                 <span className="text-xs text-gray-500">
-                  {new Date(document.upload_date).toLocaleDateString('ja-JP')}
+                  {new Date(document.created_at).toLocaleDateString('ja-JP')}
                 </span>
               </div>
             </div>

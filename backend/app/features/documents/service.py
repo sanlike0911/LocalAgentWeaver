@@ -1,13 +1,16 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from fastapi import UploadFile, HTTPException, status
 from app.models.document import Document, DocumentChunk
 from app.models.project import Project
+from pathlib import Path
 from . import schemas
 from .utils import DocumentProcessor
 import asyncio
+from app.core.database import AsyncSessionLocal  # NEW
+from app.services.llamaindex_service import LlamaIndexRAGService  # Enhanced LlamaIndex RAG Service
 
 
 class DocumentService:
@@ -68,36 +71,102 @@ class DocumentService:
 
     @staticmethod
     async def _process_document_background(db: AsyncSession, document_id: int):
-        try:
-            # ドキュメントを取得
-            result = await db.execute(select(Document).where(Document.id == document_id))
-            document = result.scalar_one_or_none()
-            if not document:
-                return
-
-            # テキスト内容を抽出
-            content = DocumentProcessor.read_text_content(document.file_path, document.mime_type)
-            
-            # チャンクに分割
-            chunks = DocumentProcessor.chunk_text(content)
-
-            # チャンクをデータベースに保存
-            for i, chunk_content in enumerate(chunks):
-                chunk = DocumentChunk(
-                    document_id=document.id,
-                    chunk_index=i,
-                    content=chunk_content
+        """
+        NOTE:
+        `db` is request-scoped and **must not** be reused after the request
+        finishes. Create a fresh session for background work instead.
+        """
+        async with AsyncSessionLocal() as session:
+            try:
+                # ドキュメントを取得
+                result = await session.execute(
+                    select(Document).where(Document.id == document_id)
                 )
-                db.add(chunk)
+                document = result.scalar_one_or_none()
+                if not document:
+                    return
 
-            # ドキュメントを処理済みに更新
-            document.processed = True
-            await db.commit()
+                # テキスト内容を抽出
+                content = DocumentProcessor.read_text_content(
+                    document.file_path, document.mime_type
+                )
 
-        except Exception as e:
-            # エラーログを出力（実際の実装では適切なロガーを使用）
-            print(f"ドキュメント処理エラー (ID: {document_id}): {str(e)}")
-            await db.rollback()
+                # プロジェクトタイプを取得
+                project_result = await session.execute(
+                    select(Project).where(Project.id == document.project_id)
+                )
+                project = project_result.scalar_one_or_none()
+                project_type = project.description if project else None
+                
+                # プロジェクト内の他のファイルタイプを取得して最適化戦略を決定
+                file_types_result = await session.execute(
+                    select(Document.mime_type)
+                    .where(Document.project_id == document.project_id)
+                    .distinct()
+                )
+                file_types = [Path(document.file_path).suffix for _ in file_types_result.scalars().all()]
+                
+                # プロジェクトの設定されたチャンキング戦略を使用、または自動判定
+                chunking_strategy = project.chunking_strategy if project and project.chunking_strategy else None
+                if not chunking_strategy:
+                    chunking_strategy = DocumentProcessor.get_optimal_chunking_strategy(
+                        project_type=project_type,
+                        file_types=file_types
+                    )
+                
+                # プロジェクトのカスタム設定を取得
+                chunking_config = project.chunking_config if project and project.chunking_config else {}
+                
+                # インテリジェントチャンキング実行
+                chunks = DocumentProcessor.chunk_text(
+                    content=content,
+                    strategy=chunking_strategy,
+                    project_type=project_type,
+                    **chunking_config  # プロジェクト特化の設定を渡す
+                )
+
+                # 既存チャンクを削除して再投入（再処理時を考慮）
+                # 完全に削除してから再登録する
+                await session.execute(
+                    delete(DocumentChunk).where(DocumentChunk.document_id == document.id)
+                )
+
+                # チャンクをデータベースに保存
+                for i, chunk_content in enumerate(chunks):
+                    chunk = DocumentChunk(
+                        document_id=document.id,
+                        chunk_index=i,
+                        content=chunk_content,
+                    )
+                    session.add(chunk)
+
+                # ドキュメントを処理済みに更新
+                document.processed = True
+                await session.commit()
+
+                # Enhanced LlamaIndex のインデックスを更新
+                # プロジェクト特化の設定を使って最適化されたインデックスを構築
+                try:
+                    success = await LlamaIndexRAGService.build_or_update_index(
+                        project_id=document.project_id,
+                        project_type=project_type,
+                        chunking_strategy=chunking_strategy,
+                        embedding_model=None  # Use default from settings
+                    )
+                    if success:
+                        print(f"Successfully updated index for project {document.project_id}")
+                    else:
+                        print(f"Index update returned False for project {document.project_id}")
+                except Exception as idx_err:
+                    # インデックス更新失敗は致命的ではないためログのみ
+                    print(
+                        f"Enhanced index build error for project {document.project_id}: {idx_err}"
+                    )
+
+            except Exception as e:
+                # エラーログを出力（実際の実装では適切なロガーを使用）
+                print(f"ドキュメント処理エラー (ID: {document_id}): {str(e)}")
+                await session.rollback()
 
     @staticmethod
     async def get_documents_by_project(db: AsyncSession, project_id: int) -> List[Document]:

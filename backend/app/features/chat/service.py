@@ -13,12 +13,13 @@ from app.core.config import settings
 from app.features.chat.schemas import (
     ChatRequest, ChatResponse, LLMProvider, ChatMessage,
     ModelInfo, ModelListResponse, InstallProgress, InstallTaskStatus,
-    ModelDeleteResponse, InstallCancelResponse
+    ModelDeleteResponse, InstallCancelResponse, SourceInfo
 )
 from app.features.documents.service import DocumentService
 from app.models.team import Team, Agent
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from app.services.llamaindex_service import LlamaIndexRAGService
 
 
 # In-memory storage for background tasks (In production, use Redis or DB)
@@ -36,11 +37,55 @@ class ChatService:
     ) -> ChatResponse:
         """RAG機能を使用してメッセージをLLMに送信"""
         try:
-            # アクティブなドキュメントのコンテキストを取得
-            document_context = await DocumentService.get_active_documents_content(db, project_id)
-            
             # チーム情報を取得してエージェントのシステムプロンプトを適用
             team_context = await ChatService._get_team_context(db, team_id) if team_id else ""
+            
+            # Ollamaプロバイダーの場合はLlamaIndexを使用
+            if chat_request.provider == LLMProvider.OLLAMA:
+                try:
+                    # チームコンテキストとユーザーメッセージを組み合わせる
+                    query = f"{team_context}\n\n{chat_request.message}" if team_context else chat_request.message
+                    
+                    # Enhanced LlamaIndexRAGServiceを使用してクエリを実行
+                    result = await LlamaIndexRAGService.query(
+                        project_id=project_id,
+                        question=query,
+                        model_name=chat_request.model,
+                        project_type=None,  # Auto-detect or use project settings
+                        similarity_top_k=None  # Use optimal settings
+                    )
+                    
+                    # ソース情報をスキーマに変換
+                    sources = [
+                        SourceInfo(
+                            file_name=source["file_name"],
+                            file_path=source["file_path"],
+                            similarity_score=source["similarity_score"],
+                            content_excerpt=source["content_excerpt"]
+                        )
+                        for source in result["sources"]
+                    ]
+                    
+                    # 応答を返す（ソース情報付き）
+                    return ChatResponse(
+                        message=result["response"],
+                        provider="ollama",
+                        model=chat_request.model,
+                        usage={
+                            "rag_enabled": True,
+                            "sources_count": len(sources),
+                            "metadata": result["metadata"]
+                        },
+                        sources=sources
+                    )
+                except Exception as e:
+                    logger.error(f"LlamaIndex RAG error: {str(e)}")
+                    # エラーが発生した場合は従来の方法にフォールバック
+                    logger.warning("Falling back to simple context method due to LlamaIndex error")
+            
+            # LM Studioまたはフォールバック処理：従来の方法を使用
+            # アクティブなドキュメントのコンテキストを取得
+            document_context = await DocumentService.get_active_documents_content(db, project_id)
             
             # コンテキストを含むプロンプトを構築
             enhanced_message = await ChatService._build_context_aware_prompt(

@@ -32,11 +32,20 @@ class RAGChatRequest(BaseModel):
     context: Optional[str] = None
 
 
+class SourceInfo(BaseModel):
+    """Information about document sources used in RAG responses"""
+    file_name: str
+    file_path: str
+    similarity_score: float
+    content_excerpt: str
+
+
 class ChatResponse(BaseModel):
     message: str
     provider: str
     model: str
     usage: Optional[Dict[str, Any]] = None
+    sources: Optional[List[SourceInfo]] = None  # RAG source information
 
 
 class ChatHistory(BaseModel):

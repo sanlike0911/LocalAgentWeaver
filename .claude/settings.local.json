@@ -34,7 +34,12 @@
       "WebFetch(domain:lmstudio.ai)",
       "Bash(npm test:*)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python -m pytest app/tests/test_document_processor_enhanced.py -v)",
+      "Bash(python -m pytest app/tests/test_intelligent_chunking.py -v)",
+      "Bash(python3 -m pytest app/tests/test_intelligent_chunking.py -v)",
+      "Bash(python:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []

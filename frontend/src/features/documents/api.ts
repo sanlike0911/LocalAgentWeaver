@@ -2,25 +2,23 @@ import { api } from '@/utils/api'
 
 // Types
 export interface Document {
-  id: string
+  id: number
   filename: string
-  file_type: string
+  original_filename: string
   file_size: number
+  mime_type: string
   is_active: boolean
-  project_id: string
-  upload_date: string
-  chunk_count?: number
-  processing_status: 'pending' | 'processing' | 'completed' | 'failed'
+  project_id: number
+  processed: boolean
+  chunks: DocumentChunk[]
   created_at: string
   updated_at: string
 }
 
 export interface DocumentChunk {
-  id: string
-  document_id: string
-  content: string
+  id: number
   chunk_index: number
-  embedding_vector?: number[]
+  content: string
   created_at: string
 }
 
@@ -31,6 +29,15 @@ export interface UploadDocumentRequest {
 
 export interface UpdateDocumentRequest {
   is_active?: boolean
+}
+
+export interface DocumentProcessingStatus {
+  document_id: number
+  filename: string
+  processed: boolean
+  chunk_count: number
+  file_size: number
+  created_at: string
 }
 
 // Documents API
@@ -45,9 +52,8 @@ export const documentsApi = {
   uploadDocument: (data: UploadDocumentRequest) => {
     const formData = new FormData()
     formData.append('file', data.file)
-    formData.append('project_id', data.project_id.toString())
     
-    return api.post('/api/documents/upload', formData, {
+    return api.post(`/api/projects/${data.project_id}/documents/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -67,6 +73,9 @@ export const documentsApi = {
   // Document processing
   reprocessDocument: (documentId: number) =>
     api.post(`/api/documents/${documentId}/reprocess`),
+  
+  getProcessingStatus: (projectId: number) =>
+    api.get(`/api/projects/${projectId}/documents/status`),
 
   // Batch operations
   bulkUpdateDocuments: (projectId: number, documentIds: number[], data: UpdateDocumentRequest) =>

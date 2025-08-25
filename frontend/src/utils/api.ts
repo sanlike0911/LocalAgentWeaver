@@ -7,6 +7,8 @@ export interface Project {
   id: string
   name: string
   description?: string
+  chunking_strategy?: string
+  chunking_config?: Record<string, any>
   created_at: string
   updated_at: string
 }
@@ -63,11 +65,44 @@ export const authApi = {
 export const projectApi = {
   getProjects: () => api.get('/api/projects'),
   getProject: (id: string) => api.get(`/api/projects/${id}`),
-  createProject: (data: { name: string; description?: string }) =>
-    api.post('/api/projects', data),
-  updateProject: (id: string, data: { name: string; description?: string }) =>
-    api.put(`/api/projects/${id}`, data),
+  createProject: (data: { 
+    name: string; 
+    description?: string;
+    chunking_strategy?: string;
+    chunking_config?: Record<string, any>;
+  }) => api.post('/api/projects', data),
+  updateProject: (id: string, data: { 
+    name?: string; 
+    description?: string;
+    chunking_strategy?: string;
+    chunking_config?: Record<string, any>;
+  }) => api.put(`/api/projects/${id}`, data),
   deleteProject: (id: string) => api.delete(`/api/projects/${id}`),
+  
+  // Chunking configuration API
+  updateChunkingConfig: (id: string, data: {
+    chunking_strategy: string;
+    chunking_config?: Record<string, any>;
+  }) => api.put(`/api/projects/${id}/chunking-config`, data),
+  getChunkingStrategies: () => api.get('/api/projects/chunking/strategies'),
+  analyzeProjectContent: (id: string) => api.get(`/api/projects/${id}/chunking/analyze`),
+}
+
+// Source information for RAG responses
+export interface SourceInfo {
+  file_name: string;
+  file_path: string;
+  similarity_score: number;
+  content_excerpt: string;
+}
+
+// Chat response with optional source information
+export interface ChatResponse {
+  message: string;
+  provider: string;
+  model: string;
+  usage?: Record<string, any>;
+  sources?: SourceInfo[];
 }
 
 // Chat API
@@ -79,6 +114,16 @@ export const chatApi = {
     model: string;
     context?: string;
   }) => api.post('/api/chat/send', data),
+  
+  // RAG-enhanced chat with source information
+  sendRAGMessage: (data: {
+    project_id: number;
+    message: string;
+    provider: 'ollama' | 'lm_studio';
+    model: string;
+    team_id?: number;
+    context?: string;
+  }) => api.post('/api/chat/send-rag', data),
   getChatHistory: (projectId: string) => api.get(`/api/chat/history/${projectId}`),
   checkLLMHealth: () => api.get('/api/chat/health'),
   

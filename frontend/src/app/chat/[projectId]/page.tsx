@@ -3,12 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
-import { Send, ArrowLeft, Bot, User, Settings, Users } from 'lucide-react'
+import { Send, ArrowLeft, Bot, User, Settings, Users, Wifi, WifiOff, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { projectApi, chatApi, Project } from '@/utils/api'
+import { projectApi, chatApi, Project, SourceInfo, ChatResponse } from '@/utils/api'
 import { Team, Agent } from '@/features/teams/api'
 import TeamSelectorModal from '@/features/teams/components/TeamSelectorModal'
 import TeamEditorModal from '@/features/teams/components/TeamEditorModal'
@@ -23,6 +23,7 @@ interface Message {
   sender: 'user' | 'assistant'
   timestamp: Date
   responseTime?: number // ミリ秒単位の応答時間（アシスタントメッセージのみ）
+  sources?: SourceInfo[] // RAGソース情報（アシスタントメッセージのみ）
 }
 
 // Document interface is now in DocumentManager
@@ -36,7 +37,13 @@ function ChatPageContent() {
   const [error, setError] = useState('')
   const [llmProvider, setLlmProvider] = useState<'ollama' | 'lm_studio'>('ollama')
   const [selectedModel, setSelectedModel] = useState('llama3.2:1b')
-  const [llmHealthStatus, setLlmHealthStatus] = useState<any>(null)
+  const [llmHealthStatus, setLlmHealthStatus] = useState<any>({
+    ollama: { status: 'unreachable', message: '未接続' },
+    lm_studio: { status: 'unreachable', message: '未接続' }
+  })
+  
+  // Citations/Sources state
+  const [currentSources, setCurrentSources] = useState<SourceInfo[]>([])
   
   // Document management state - now handled by DocumentManager component
   
@@ -137,26 +144,34 @@ function ChatPageContent() {
     const startTime = Date.now()
 
     try {
-      const response = await chatApi.sendMessage({
-        project_id: projectId,
+      // Use RAG endpoint for enhanced responses with source information
+      const response = await chatApi.sendRAGMessage({
+        project_id: parseInt(projectId),
         message: userMessage.content,
         provider: llmProvider,
-        model: selectedModel
+        model: selectedModel,
+        team_id: selectedTeam?.id
       })
       
       // 応答時間計算
       const endTime = Date.now()
       const responseTime = endTime - startTime
       
+      const responseData: ChatResponse = response.data
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: response.data.message,
+        content: responseData.message,
         sender: 'assistant',
         timestamp: new Date(),
-        responseTime
+        responseTime,
+        sources: responseData.sources
       }
 
       setMessages(prev => [...prev, assistantMessage])
+      
+      // Update current sources for the right sidebar
+      setCurrentSources(responseData.sources || [])
     } catch (err: any) {
       setError(err.response?.data?.detail || 'メッセージの送信に失敗しました')
       
@@ -261,26 +276,24 @@ function ChatPageContent() {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <label className="text-sm font-medium">Provider:</label>
-                    <div className="relative">
-                      <select 
-                        value={llmProvider}
-                        onChange={(e) => {
-                          setLlmProvider(e.target.value as 'ollama' | 'lm_studio')
-                          checkLLMHealth()
-                        }}
-                        className="text-sm border rounded px-2 py-1 pr-8"
-                      >
-                        <option value="ollama">Ollama</option>
-                        <option value="lm_studio">LM Studio</option>
-                      </select>
-                      {llmHealthStatus && (
-                        <div className={`absolute right-1 top-1/2 transform -translate-y-1/2 w-2 h-2 rounded-full ${
-                          llmHealthStatus[llmProvider]?.status === 'healthy' 
-                            ? 'bg-green-500' 
-                            : llmHealthStatus[llmProvider]?.status === 'unreachable'
-                            ? 'bg-red-500'
-                            : 'bg-yellow-500'
-                        }`} title={llmHealthStatus[llmProvider]?.message || ''} />
+                    <select 
+                      value={llmProvider}
+                      onChange={(e) => {
+                        setLlmProvider(e.target.value as 'ollama' | 'lm_studio')
+                        checkLLMHealth()
+                      }}
+                      className="text-sm border rounded px-2 py-1"
+                    >
+                      <option value="ollama">Ollama</option>
+                      <option value="lm_studio">LM Studio</option>
+                    </select>
+                    <div className="flex items-center" title={llmHealthStatus[llmProvider]?.message || '未接続'}>
+                      {llmHealthStatus[llmProvider]?.status === 'healthy' ? (
+                        <Wifi className="w-4 h-4 text-green-500" />
+                      ) : llmHealthStatus[llmProvider]?.status === 'unreachable' ? (
+                        <WifiOff className="w-4 h-4 text-red-500" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-yellow-500" />
                       )}
                     </div>
                   </div>
@@ -376,66 +389,53 @@ function ChatPageContent() {
           </Card>
         </div>
 
-        {/* Right Sidebar - Citations/References and LLM Status */}
+        {/* Right Sidebar - Citations/References */}
         <div className="w-64 bg-white shadow-sm border-l overflow-y-auto">
-          <div className="p-4 border-b">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">LLM接続状態</h3>
-            {llmHealthStatus ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-600">
-                    {llmProvider === 'ollama' ? 'Ollama' : 'LM Studio'}:
-                  </span>
-                  <div className="flex items-center space-x-1">
-                    <div className={`w-2 h-2 rounded-full ${
-                      llmHealthStatus[llmProvider]?.status === 'healthy' 
-                        ? 'bg-green-500' 
-                        : llmHealthStatus[llmProvider]?.status === 'unreachable'
-                        ? 'bg-red-500'
-                        : 'bg-yellow-500'
-                    }`} />
-                    <span className="text-xs">
-                      {llmHealthStatus[llmProvider]?.status === 'healthy' ? '接続中' : '切断'}
-                    </span>
-                  </div>
-                </div>
-                
-                {llmHealthStatus[llmProvider]?.models && llmHealthStatus[llmProvider].models.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-600 mb-1">利用可能モデル:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {llmHealthStatus[llmProvider].models.slice(0, 3).map((model: string, index: number) => (
-                        <span key={index} className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
-                          {model}
-                        </span>
-                      ))}
-                      {llmHealthStatus[llmProvider].models.length > 3 && (
-                        <span className="text-xs text-gray-500">
-                          +{llmHealthStatus[llmProvider].models.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {llmHealthStatus[llmProvider]?.status !== 'healthy' && (
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                    {llmHealthStatus[llmProvider]?.message}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-xs text-gray-500">接続状態を確認中...</div>
-            )}
-          </div>
-          
           <div className="p-4">
             <h3 className="text-sm font-medium text-gray-900 mb-3">引用・出典</h3>
-            <p className="text-xs text-gray-600">
-              AIの応答に関連するドキュメントの引用がここに表示されます
-            </p>
+            
+            {currentSources.length > 0 ? (
+              <div className="space-y-3">
+                {currentSources.map((source, index) => (
+                  <div 
+                    key={index} 
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-colors cursor-pointer"
+                    onClick={() => {
+                      // TODO: ドキュメントへの直接リンク機能
+                      console.log('Open document:', source.file_path)
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="text-xs font-medium text-gray-900 truncate">
+                        {source.file_name}
+                      </h4>
+                      <span className="text-xs text-blue-600 font-mono">
+                        {Math.round(source.similarity_score * 100)}%
+                      </span>
+                    </div>
+                    
+                    <p className="text-xs text-gray-600 mb-2 line-clamp-3">
+                      {source.content_excerpt}
+                    </p>
+                    
+                    <div className="flex items-center text-xs text-gray-500">
+                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fillRule="evenodd" d="M4 5a2 2 0 012-2v1a1 1 0 001 1h6a1 1 0 001-1V3a2 2 0 012 2v6a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                      </svg>
+                      クリックして開く
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600">
+                AIの応答に関連するドキュメントの引用がここに表示されます
+              </p>
+            )}
           </div>
         </div>
+
       </div>
 
       {/* Modals */}
