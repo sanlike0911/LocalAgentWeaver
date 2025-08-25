@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, LogOut, MessageCircle, Trash2, Search } from 'lucide-react'
+import { Plus, MessageCircle, Trash2, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/dialog'
 import { projectApi, Project } from '@/utils/api'
 import AuthWrapper from '@/components/AuthWrapper'
-import { useAuth } from '@/hooks/useAuth'
 
 const createProjectSchema = z.object({
   name: z.string().min(1, 'プロジェクト名は必須です'),
@@ -39,7 +38,6 @@ function DashboardPageContent() {
   const [successMessage, setSuccessMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const router = useRouter()
-  const { logout } = useAuth()
 
   const {
     register,
@@ -121,10 +119,6 @@ function DashboardPageContent() {
     }
   }
 
-  const onLogout = () => {
-    logout()
-  }
-
   const openChat = (projectId: string) => {
     router.push(`/chat/${projectId}`)
   }
@@ -144,31 +138,25 @@ function DashboardPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">LocalAgentWeaver</h1>
-              <p className="text-gray-600">プロジェクト一覧</p>
-            </div>
-            <Button onClick={onLogout} variant="outline">
-              <LogOut className="mr-2 h-4 w-4" />
-              ログアウト
-            </Button>
-          </div>
-        </div>
-      </div>
+      <div className="container py-6">
+        <h1 className="text-2xl font-bold text-gray-900">プロジェクト一覧</h1>
+        <p className="text-gray-600 mt-1">作成済みのプロジェクトを管理します</p>
 
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="mt-6">
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+            <div
+              className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded"
+              aria-live="polite"
+            >
               {error}
             </div>
           )}
           
           {successMessage && (
-            <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+            <div
+              className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded"
+              aria-live="polite"
+            >
               {successMessage}
             </div>
           )}

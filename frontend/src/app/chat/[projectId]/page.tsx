@@ -3,11 +3,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
-import { Send, ArrowLeft, Bot, User, Settings, Users, Wifi, WifiOff, AlertCircle } from 'lucide-react'
+import { Send, Bot, User, Settings, Users, Wifi, WifiOff, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { projectApi, chatApi, Project, SourceInfo, ChatResponse } from '@/utils/api'
 import { Team, Agent } from '@/features/teams/api'
 import TeamSelectorModal from '@/features/teams/components/TeamSelectorModal'
@@ -57,6 +63,8 @@ function ChatPageContent() {
   const router = useRouter()
   const params = useParams()
   const projectId = params.projectId as string
+  // Mobile documents dialog visibility
+  const [showDocsDialog, setShowDocsDialog] = useState(false)
 
   useEffect(() => {
     fetchProject()
@@ -150,7 +158,8 @@ function ChatPageContent() {
         message: userMessage.content,
         provider: llmProvider,
         model: selectedModel,
-        team_id: selectedTeam?.id
+        // team_id must be a number. Convert string id to number when available.
+        team_id: selectedTeam ? parseInt(selectedTeam.id) : undefined
       })
       
       // 応答時間計算
@@ -203,32 +212,13 @@ function ChatPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center py-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard')}
-              className="mr-4 p-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">{project.name}</h1>
-              {project.description && (
-                <p className="text-gray-600 text-sm">{project.description}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Accessible project heading (screen reader) */}
+      <h1 className="sr-only">{project.name}</h1>
 
       {/* 3 Column Layout */}
       <div className="flex h-[calc(100vh-80px)]">
         {/* Left Sidebar - Documents and Team */}
-        <div className="w-80 bg-white shadow-sm border-r overflow-y-auto">
+        <div className="hidden md:block w-80 bg-white shadow-sm border-r overflow-y-auto">
           {/* Team Selection Area */}
           <div className="p-4 border-b">
             <div 
@@ -260,6 +250,26 @@ function ChatPageContent() {
 
         {/* Center - Chat Area */}
         <div className="flex-1 flex flex-col">
+          {/* Mobile controls */}
+          <div className="md:hidden flex items-center gap-2 px-4 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTeamSelector(true)}
+              aria-label="チームを選択"
+            >
+              <Users className="h-4 w-4 mr-1" /> チーム
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDocsDialog(true)}
+              aria-label="ドキュメントを管理"
+            >
+              <Settings className="h-4 w-4 mr-1" /> Docs
+            </Button>
+          </div>
+
           {error && (
             <div className="m-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
               {error}
@@ -387,10 +397,36 @@ function ChatPageContent() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Sources for mobile */}
+          <div className="md:hidden px-4 pb-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-2">引用・出典</h3>
+            {currentSources.length > 0 ? (
+              <div className="space-y-3">
+                {currentSources.map((source, index) => (
+                  <div
+                    key={index}
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-3"
+                  >
+                    <p className="text-xs font-medium truncate">
+                      {source.file_name}
+                    </p>
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {source.content_excerpt}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-600">
+                AIの応答に関連するドキュメントの引用がここに表示されます
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Right Sidebar - Citations/References */}
-        <div className="w-64 bg-white shadow-sm border-l overflow-y-auto">
+        <div className="hidden md:block w-64 bg-white shadow-sm border-l overflow-y-auto">
           <div className="p-4">
             <h3 className="text-sm font-medium text-gray-900 mb-3">引用・出典</h3>
             
@@ -457,6 +493,16 @@ function ChatPageContent() {
         mode={teamEditorMode}
         projectId={parseInt(projectId)}
       />
+
+      {/* Documents dialog for mobile */}
+      <Dialog open={showDocsDialog} onOpenChange={setShowDocsDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>ドキュメント管理</DialogTitle>
+          </DialogHeader>
+          <DocumentManager projectId={parseInt(projectId)} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
